@@ -1,4 +1,4 @@
-package gptbot_test
+package milvus_test
 
 import (
 	"context"
@@ -6,15 +6,22 @@ import (
 	"testing"
 
 	"github.com/go-aie/gptbot"
+	"github.com/go-aie/gptbot/milvus"
 	"github.com/google/go-cmp/cmp"
 )
 
-func TestLocalVectorStore_Query(t *testing.T) {
+func TestMilvus_Query(t *testing.T) {
 	apiKey := os.Getenv("OPENAI_API_KEY")
 	encoder := gptbot.NewOpenAIEncoder(apiKey, "")
 
-	store := new(gptbot.LocalVectorStore)
-	if err := store.LoadJSON(context.Background(), "testdata/olympics_sections.json"); err != nil {
+	store, err := milvus.NewMilvus(&milvus.Config{
+		CollectionName: "olympics_knowledge",
+	})
+	if err != nil {
+		t.Fatalf("err: %v\n", err)
+	}
+
+	if err := store.LoadJSON(context.Background(), "../testdata/olympics_sections.json"); err != nil {
 		t.Fatalf("err: %v\n", err)
 	}
 
