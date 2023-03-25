@@ -35,12 +35,17 @@ func (vs *LocalVectorStore) LoadJSON(ctx context.Context, filename string) error
 		chunkMap[chunk.DocumentID] = append(chunkMap[chunk.DocumentID], chunk)
 	}
 
-	return vs.Upsert(ctx, chunkMap)
+	return vs.Insert(ctx, chunkMap)
 }
 
-func (vs *LocalVectorStore) Upsert(ctx context.Context, chunks map[string][]*Chunk) error {
+// GetAllData returns all the internal data. It is mainly used for testing purpose.
+func (vs *LocalVectorStore) GetAllData(ctx context.Context) map[string][]*Chunk {
+	return vs.chunks
+}
+
+func (vs *LocalVectorStore) Insert(ctx context.Context, chunks map[string][]*Chunk) error {
 	for documentID, chunkList := range chunks {
-		vs.chunks[documentID] = chunkList
+		vs.chunks[documentID] = append(vs.chunks[documentID], chunkList...)
 	}
 	return nil
 }

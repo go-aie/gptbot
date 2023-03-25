@@ -52,15 +52,11 @@ type Preprocessor struct {
 	cfg     *PreprocessorConfig
 }
 
-func NewPreprocessor(cfg *PreprocessorConfig) (*Preprocessor, error) {
-	encoder, err := newDummyTokenizer()
-	if err != nil {
-		return nil, err
-	}
+func NewPreprocessor(cfg *PreprocessorConfig) *Preprocessor {
 	return &Preprocessor{
-		encoder: encoder,
+		encoder: newDummyTokenizer(),
 		cfg:     cfg.init(),
-	}, nil
+	}
 }
 
 func (p *Preprocessor) Preprocess(docs ...*Document) (map[string][]*Chunk, error) {
@@ -175,12 +171,13 @@ type dummyTokenizer struct {
 	encoder *tokenizer.Encoder
 }
 
-func newDummyTokenizer() (*dummyTokenizer, error) {
+func newDummyTokenizer() *dummyTokenizer {
 	encoder, err := tokenizer.NewEncoder()
 	if err != nil {
-		return nil, err
+		// We assume that there's no error.
+		panic(err)
 	}
-	return &dummyTokenizer{encoder: encoder}, nil
+	return &dummyTokenizer{encoder: encoder}
 }
 
 // Encode iterates through runes and returns a slice of the leading runes, which

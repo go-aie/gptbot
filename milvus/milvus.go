@@ -89,20 +89,10 @@ func (m *Milvus) LoadJSON(ctx context.Context, filename string) error {
 		chunkMap[chunk.DocumentID] = append(chunkMap[chunk.DocumentID], chunk)
 	}
 
-	return m.Upsert(ctx, chunkMap)
+	return m.Insert(ctx, chunkMap)
 }
 
-func (m *Milvus) Upsert(ctx context.Context, chunks map[string][]*gptbot.Chunk) error {
-	// Delete old chunks belonging to the given document IDs.
-	var documentIDs []string
-	for documentID := range chunks {
-		documentIDs = append(documentIDs, documentID)
-	}
-	if err := m.Delete(ctx, documentIDs...); err != nil {
-		return err
-	}
-
-	// Insert new chunks.
+func (m *Milvus) Insert(ctx context.Context, chunks map[string][]*gptbot.Chunk) error {
 	var idList []string
 	var textList []string
 	var documentIDList []string

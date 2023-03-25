@@ -1,16 +1,27 @@
 package gptbot_test
 
 import (
+	"context"
+	"os"
 	"testing"
 
 	"github.com/go-aie/gptbot"
 	"github.com/google/go-cmp/cmp"
 )
 
-func TestPreprocessor_Preprocess(t *testing.T) {
-	p := gptbot.NewPreprocessor(&gptbot.PreprocessorConfig{
-		ChunkTokenNum:   150,
-		MinChunkCharNum: 50,
+func TestFeeder_Feed(t *testing.T) {
+	apiKey := os.Getenv("OPENAI_API_KEY")
+	encoder := gptbot.NewOpenAIEncoder(apiKey, "")
+
+	store := gptbot.NewLocalVectorStore()
+	f := gptbot.NewFeeder(&gptbot.FeederConfig{
+		Encoder: encoder,
+		Updater: store,
+		Preprocessor: gptbot.NewPreprocessor(&gptbot.PreprocessorConfig{
+			ChunkTokenNum:   150,
+			MinChunkCharNum: 50,
+		}),
+		BatchSize: 2,
 	})
 
 	tests := []struct {
@@ -57,11 +68,18 @@ func TestPreprocessor_Preprocess(t *testing.T) {
 		},
 	}
 	for _, tt := range tests {
-		got, err := p.Preprocess(tt.in...)
-		if err != nil {
+		if err := f.Feed(context.Background(), tt.in...); err != nil {
 			t.Errorf("err: %v\n", err)
 		}
 
+		got := store.GetAllData(context.Background())
+
+		// For simplicity, clear the Embedding field.
+		for _, cs := range got {
+			for _, c := range cs {
+				c.Embedding = nil
+			}
+		}
 		if !cmp.Equal(got, tt.want) {
 			diff := cmp.Diff(got, tt.want)
 			t.Errorf("Want - Got: %s", diff)
