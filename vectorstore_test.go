@@ -27,20 +27,20 @@ func TestLocalVectorStore_Query(t *testing.T) {
 			want: []*gptbot.Similarity{
 				{
 					Chunk: &gptbot.Chunk{
-						ID:         "Men's long jump - Summary",
-						DocumentID: "Athletics at the 2020 Summer Olympics",
+						ID:         "Summary",
+						DocumentID: "Athletics at the 2020 Summer Olympics - Men's long jump",
 					},
 				},
 				{
 					Chunk: &gptbot.Chunk{
-						ID:         "Men's triple jump - Summary",
-						DocumentID: "Athletics at the 2020 Summer Olympics",
+						ID:         "Summary",
+						DocumentID: "Athletics at the 2020 Summer Olympics - Men's triple jump",
 					},
 				},
 				{
 					Chunk: &gptbot.Chunk{
-						ID:         "Men's high jump - Summary",
-						DocumentID: "Athletics at the 2020 Summer Olympics",
+						ID:         "Summary",
+						DocumentID: "Athletics at the 2020 Summer Olympics - Men's high jump",
 					},
 				},
 			},

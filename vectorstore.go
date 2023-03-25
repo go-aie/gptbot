@@ -10,12 +10,12 @@ import (
 )
 
 type LocalVectorStore struct {
-	chunks map[string]*Chunk
+	chunks map[string][]*Chunk
 }
 
 func NewLocalVectorStore() *LocalVectorStore {
 	return &LocalVectorStore{
-		chunks: make(map[string]*Chunk),
+		chunks: make(map[string][]*Chunk),
 	}
 }
 
@@ -30,12 +30,17 @@ func (vs *LocalVectorStore) LoadJSON(ctx context.Context, filename string) error
 		return err
 	}
 
-	return vs.Upsert(ctx, chunks)
+	chunkMap := make(map[string][]*Chunk)
+	for _, chunk := range chunks {
+		chunkMap[chunk.DocumentID] = append(chunkMap[chunk.DocumentID], chunk)
+	}
+
+	return vs.Upsert(ctx, chunkMap)
 }
 
-func (vs *LocalVectorStore) Upsert(ctx context.Context, chunks []*Chunk) error {
-	for _, chunk := range chunks {
-		vs.chunks[chunk.ID] = chunk
+func (vs *LocalVectorStore) Upsert(ctx context.Context, chunks map[string][]*Chunk) error {
+	for documentID, chunkList := range chunks {
+		vs.chunks[documentID] = chunkList
 	}
 	return nil
 }
@@ -48,13 +53,15 @@ func (vs *LocalVectorStore) Query(ctx context.Context, embedding Embedding, topK
 	target := mat.NewVecDense(len(embedding), embedding)
 
 	var similarities []*Similarity
-	for _, chunk := range vs.chunks {
-		candidate := mat.NewVecDense(len(chunk.Embedding), chunk.Embedding)
-		score := mat.Dot(target, candidate)
-		similarities = append(similarities, &Similarity{
-			Chunk: chunk,
-			Score: score,
-		})
+	for _, chunks := range vs.chunks {
+		for _, chunk := range chunks {
+			candidate := mat.NewVecDense(len(chunk.Embedding), chunk.Embedding)
+			score := mat.Dot(target, candidate)
+			similarities = append(similarities, &Similarity{
+				Chunk: chunk,
+				Score: score,
+			})
+		}
 	}
 
 	// Sort similarities by score in descending order.
@@ -66,4 +73,11 @@ func (vs *LocalVectorStore) Query(ctx context.Context, embedding Embedding, topK
 		return similarities, nil
 	}
 	return similarities[:topK], nil
+}
+
+func (vs *LocalVectorStore) Delete(ctx context.Context, documentIDs ...string) error {
+	for _, documentID := range documentIDs {
+		delete(vs.chunks, documentID)
+	}
+	return nil
 }

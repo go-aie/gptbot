@@ -41,7 +41,7 @@ func main() {
 }
 ```
 
-Note that the above example uses a local vector store. If you have a larger dataset, please consider using a vector search engine (e.g. [Milvus](milvus)).
+Note that the above example uses a loca vector store. If you have a larger dataset, please consider using a vector search engine (e.g. [Milvus](milvus)).
 
 
 ## Design

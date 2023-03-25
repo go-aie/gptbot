@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/go-aie/gptbot"
 	"github.com/go-aie/xslices"
@@ -20,6 +21,9 @@ type Config struct {
 	// CollectionName is the collection name.
 	// This field is required.
 	CollectionName string
+
+	// CreateNew specifies whether to overwrite if the collection already exists.
+	CreateNew bool
 
 	// Addr is the address of the Milvus server.
 	// Defaults to "localhost:19530".
@@ -58,8 +62,11 @@ func NewMilvus(cfg *Config) (*Milvus, error) {
 		cfg:    cfg,
 	}
 
-	_ = m.client.ReleaseCollection(ctx, m.cfg.CollectionName)
-	if err := m.createCollectionIfNotExists(ctx); err != nil {
+	if err := m.createCollection(ctx, cfg.CreateNew); err != nil {
+		return nil, err
+	}
+
+	if err := m.client.LoadCollection(ctx, m.cfg.CollectionName, false); err != nil {
 		return nil, err
 	}
 
@@ -77,51 +84,49 @@ func (m *Milvus) LoadJSON(ctx context.Context, filename string) error {
 		return err
 	}
 
-	return m.Upsert(ctx, chunks)
+	chunkMap := make(map[string][]*gptbot.Chunk)
+	for _, chunk := range chunks {
+		chunkMap[chunk.DocumentID] = append(chunkMap[chunk.DocumentID], chunk)
+	}
+
+	return m.Upsert(ctx, chunkMap)
 }
 
-func (m *Milvus) Upsert(ctx context.Context, chunks []*gptbot.Chunk) error {
-	// We need to release the collection before inserting.
-	if err := m.client.ReleaseCollection(ctx, m.cfg.CollectionName); err != nil {
-		return err
-	}
-
-	var ids []string
-	var texts []string
+func (m *Milvus) Upsert(ctx context.Context, chunks map[string][]*gptbot.Chunk) error {
+	// Delete old chunks belonging to the given document IDs.
 	var documentIDs []string
-	var embeddings [][]float32
-	for _, chunk := range chunks {
-		ids = append(ids, chunk.ID)
-		texts = append(texts, chunk.Text)
-		documentIDs = append(documentIDs, chunk.DocumentID)
-		embeddings = append(embeddings, xslices.Float64ToNumber[float32](chunk.Embedding))
+	for documentID := range chunks {
+		documentIDs = append(documentIDs, documentID)
 	}
-
-	idCol := entity.NewColumnVarChar(idName, ids)
-	textCol := entity.NewColumnVarChar(textName, texts)
-	documentIDCol := entity.NewColumnVarChar(documentIDName, documentIDs)
-	embeddingCol := entity.NewColumnFloatVector(embeddingName, m.cfg.Dim, embeddings)
-
-	// Create index "IVF_FLAT".
-	idx, err := entity.NewIndexIvfFlat(entity.L2, 128)
-	if err != nil {
-		return err
-	}
-	if err := m.client.CreateIndex(ctx, m.cfg.CollectionName, embeddingName, idx, false); err != nil {
+	if err := m.Delete(ctx, documentIDs...); err != nil {
 		return err
 	}
 
-	_, err = m.client.Insert(ctx, m.cfg.CollectionName, "", idCol, textCol, documentIDCol, embeddingCol)
+	// Insert new chunks.
+	var idList []string
+	var textList []string
+	var documentIDList []string
+	var embeddingList [][]float32
+	for _, chunkList := range chunks {
+		for _, chunk := range chunkList {
+			idList = append(idList, chunk.ID)
+			textList = append(textList, chunk.Text)
+			documentIDList = append(documentIDList, chunk.DocumentID)
+			embeddingList = append(embeddingList, xslices.Float64ToNumber[float32](chunk.Embedding))
+		}
+	}
+
+	idCol := entity.NewColumnVarChar(idName, idList)
+	textCol := entity.NewColumnVarChar(textName, textList)
+	documentIDCol := entity.NewColumnVarChar(documentIDName, documentIDList)
+	embeddingCol := entity.NewColumnFloatVector(embeddingName, m.cfg.Dim, embeddingList)
+
+	_, err := m.client.Insert(ctx, m.cfg.CollectionName, "", idCol, textCol, documentIDCol, embeddingCol)
 	return err
 }
 
 // Query searches similarities of the given embedding with default consistency level.
 func (m *Milvus) Query(ctx context.Context, embedding gptbot.Embedding, topK int) ([]*gptbot.Similarity, error) {
-	// We need to load the collection before searching.
-	if err := m.client.LoadCollection(ctx, m.cfg.CollectionName, false); err != nil {
-		return nil, err
-	}
-
 	float32Emb := xslices.Float64ToNumber[float32](embedding)
 	vec2search := []entity.Vector{
 		entity.FloatVector(float32Emb),
@@ -147,15 +152,40 @@ func (m *Milvus) Query(ctx context.Context, embedding gptbot.Embedding, topK int
 	return constructSimilaritiesFromResult(&result[0])
 }
 
-func (m *Milvus) createCollectionIfNotExists(ctx context.Context) error {
+func (m *Milvus) Delete(ctx context.Context, documentIDs ...string) error {
+	expr := fmt.Sprintf(`document_id in ["%s"]`, strings.Join(documentIDs, `", "`))
+	result, err := m.client.Query(ctx, m.cfg.CollectionName, nil, expr, []string{pkName})
+	if err != nil {
+		return err
+	}
+
+	var pkCol *entity.ColumnInt64
+	for _, field := range result {
+		if field.Name() == pkName {
+			if c, ok := field.(*entity.ColumnInt64); ok {
+				pkCol = c
+			}
+		}
+	}
+
+	if len(pkCol.Data()) == 0 {
+		return nil
+	}
+	return m.client.DeleteByPks(ctx, m.cfg.CollectionName, "", pkCol)
+}
+
+func (m *Milvus) createCollection(ctx context.Context, createNew bool) error {
 	has, err := m.client.HasCollection(ctx, m.cfg.CollectionName)
 	if err != nil {
 		return err
 	}
 
-	if has {
-		//_ = m.client.DropCollection(ctx, m.cfg.CollectionName)
+	if has && !createNew {
 		return nil
+	}
+
+	if has {
+		_ = m.client.DropCollection(ctx, m.cfg.CollectionName)
 	}
 
 	// The collection does not exist, so we need to create one.
@@ -202,7 +232,16 @@ func (m *Milvus) createCollectionIfNotExists(ctx context.Context) error {
 	}
 
 	// Create collection with consistency level, which serves as the default search/query consistency level.
-	return m.client.CreateCollection(ctx, schema, 2, client.WithConsistencyLevel(entity.ClBounded))
+	if err := m.client.CreateCollection(ctx, schema, 2, client.WithConsistencyLevel(entity.ClBounded)); err != nil {
+		return err
+	}
+
+	// Create index "IVF_FLAT".
+	idx, err := entity.NewIndexIvfFlat(entity.L2, 128)
+	if err != nil {
+		return err
+	}
+	return m.client.CreateIndex(ctx, m.cfg.CollectionName, embeddingName, idx, false)
 }
 
 func constructSimilaritiesFromResult(result *client.SearchResult) ([]*gptbot.Similarity, error) {
