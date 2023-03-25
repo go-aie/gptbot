@@ -2,18 +2,19 @@ package gptbot_test
 
 import (
 	"context"
-	"fmt"
 	"os"
+	"strings"
+	"testing"
 
 	"github.com/go-aie/gptbot"
 )
 
-func Example() {
+func TestBot_Chat(t *testing.T) {
 	ctx := context.Background()
 
 	store := gptbot.NewLocalVectorStore()
 	if err := store.LoadJSON(ctx, "testdata/olympics_sections.json"); err != nil {
-		fmt.Printf("err: %v\n", err)
+		t.Fatalf("err: %v\n", err)
 	}
 
 	apiKey := os.Getenv("OPENAI_API_KEY")
@@ -26,9 +27,10 @@ func Example() {
 	question := "Who won the 2020 Summer Olympics men's high jump?"
 	answer, err := bot.Chat(ctx, question)
 	if err != nil {
-		fmt.Printf("err: %v\n", err)
+		t.Fatalf("err: %v\n", err)
 	}
 
-	fmt.Printf("Q: %s\n", question)
-	fmt.Printf("A: %s\n", answer)
+	if !strings.Contains(answer, "Gianmarco Tamberi") || !strings.Contains(answer, "Mutaz Essa Barshim") {
+		t.Errorf("unexpected answer: %s\n", answer)
+	}
 }
