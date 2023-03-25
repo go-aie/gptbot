@@ -10,7 +10,13 @@ import (
 )
 
 type LocalVectorStore struct {
-	sections []Section
+	chunks map[string]*Chunk
+}
+
+func NewLocalVectorStore() *LocalVectorStore {
+	return &LocalVectorStore{
+		chunks: make(map[string]*Chunk),
+	}
 }
 
 func (vs *LocalVectorStore) LoadJSON(ctx context.Context, filename string) error {
@@ -19,16 +25,18 @@ func (vs *LocalVectorStore) LoadJSON(ctx context.Context, filename string) error
 		return err
 	}
 
-	var sections []Section
-	if err := json.Unmarshal(data, &sections); err != nil {
+	var chunks []*Chunk
+	if err := json.Unmarshal(data, &chunks); err != nil {
 		return err
 	}
 
-	return vs.Insert(ctx, sections)
+	return vs.Upsert(ctx, chunks)
 }
 
-func (vs *LocalVectorStore) Insert(ctx context.Context, sections []Section) error {
-	vs.sections = append(vs.sections, sections...)
+func (vs *LocalVectorStore) Upsert(ctx context.Context, chunks []*Chunk) error {
+	for _, chunk := range chunks {
+		vs.chunks[chunk.ID] = chunk
+	}
 	return nil
 }
 
@@ -40,13 +48,12 @@ func (vs *LocalVectorStore) Query(ctx context.Context, embedding Embedding, topK
 	target := mat.NewVecDense(len(embedding), embedding)
 
 	var similarities []*Similarity
-	for i, section := range vs.sections {
-		candidate := mat.NewVecDense(len(section.Embedding), section.Embedding)
+	for _, chunk := range vs.chunks {
+		candidate := mat.NewVecDense(len(chunk.Embedding), chunk.Embedding)
 		score := mat.Dot(target, candidate)
 		similarities = append(similarities, &Similarity{
-			Section: section,
-			ID:      i,
-			Score:   score,
+			Chunk: chunk,
+			Score: score,
 		})
 	}
 

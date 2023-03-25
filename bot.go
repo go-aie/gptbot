@@ -9,22 +9,6 @@ import (
 	"github.com/rakyll/openai-go/chat"
 )
 
-type Embedding []float64
-
-type Section struct {
-	Title     string    `json:"title,omitempty"`
-	Heading   string    `json:"heading,omitempty"`
-	Content   string    `json:"content,omitempty"`
-	Embedding Embedding `json:"embedding,omitempty"`
-}
-
-type Similarity struct {
-	Section
-
-	ID    int     `json:"id,omitempty"`
-	Score float64 `json:"score,omitempty"`
-}
-
 type Encoder interface {
 	Encode(cxt context.Context, text string) (Embedding, error)
 	EncodeBatch(cxt context.Context, texts []string) ([]Embedding, error)
@@ -61,7 +45,7 @@ type BotConfig struct {
 	PromptTmpl string
 
 	// TopK specifies how many candidate similarities will be selected to construct the prompt.
-	// Defaults to 5.
+	// Defaults to 3.
 	TopK int
 
 	// History is used to retrieve the history messages if multi-turn conversation is needed.
@@ -78,7 +62,7 @@ func (cfg *BotConfig) init() {
 		cfg.Model = "gpt-3.5-turbo"
 	}
 	if cfg.TopK == 0 {
-		cfg.TopK = 5
+		cfg.TopK = 3
 	}
 	if cfg.PromptTmpl == "" {
 		cfg.PromptTmpl = DefaultPromptTmpl
@@ -147,15 +131,15 @@ func (b *Bot) constructPrompt(ctx context.Context, question string) (string, err
 		return "", err
 	}
 
-	var sections []string
+	var texts []string
 	for _, s := range similarities {
-		sections = append(sections, s.Content)
+		texts = append(texts, s.Text)
 	}
 
 	p := PromptTemplate(b.cfg.PromptTmpl)
 	return p.Render(PromptData{
 		Question: question,
-		Sections: sections,
+		Sections: texts,
 	})
 }
 

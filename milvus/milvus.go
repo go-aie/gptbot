@@ -13,7 +13,7 @@ import (
 )
 
 const (
-	idCol, titleCol, headingCol, contentCol, embeddingCol = "id", "title", "heading", "content", "embedding"
+	pkName, idName, textName, documentIDName, embeddingName = "pk", "id", "text", "document_id", "embedding"
 )
 
 type Config struct {
@@ -72,49 +72,46 @@ func (m *Milvus) LoadJSON(ctx context.Context, filename string) error {
 		return err
 	}
 
-	var sections []gptbot.Section
-	if err := json.Unmarshal(data, &sections); err != nil {
+	var chunks []*gptbot.Chunk
+	if err := json.Unmarshal(data, &chunks); err != nil {
 		return err
 	}
 
-	return m.Insert(ctx, sections)
+	return m.Upsert(ctx, chunks)
 }
 
-func (m *Milvus) Insert(ctx context.Context, sections []gptbot.Section) error {
+func (m *Milvus) Upsert(ctx context.Context, chunks []*gptbot.Chunk) error {
 	// We need to release the collection before inserting.
 	if err := m.client.ReleaseCollection(ctx, m.cfg.CollectionName); err != nil {
 		return err
 	}
 
-	var ids []int64
-	var titles []string
-	var headings []string
-	var contents []string
+	var ids []string
+	var texts []string
+	var documentIDs []string
 	var embeddings [][]float32
-	for i, section := range sections {
-		ids = append(ids, int64(i))
-		titles = append(titles, section.Title)
-		headings = append(headings, section.Heading)
-		contents = append(contents, section.Content)
-		embeddings = append(embeddings, xslices.Float64ToNumber[float32](section.Embedding))
+	for _, chunk := range chunks {
+		ids = append(ids, chunk.ID)
+		texts = append(texts, chunk.Text)
+		documentIDs = append(documentIDs, chunk.DocumentID)
+		embeddings = append(embeddings, xslices.Float64ToNumber[float32](chunk.Embedding))
 	}
 
-	idColData := entity.NewColumnInt64(idCol, ids)
-	titleColData := entity.NewColumnVarChar(titleCol, titles)
-	headingColData := entity.NewColumnVarChar(headingCol, headings)
-	contentColData := entity.NewColumnVarChar(contentCol, contents)
-	embeddingColData := entity.NewColumnFloatVector(embeddingCol, m.cfg.Dim, embeddings)
+	idCol := entity.NewColumnVarChar(idName, ids)
+	textCol := entity.NewColumnVarChar(textName, texts)
+	documentIDCol := entity.NewColumnVarChar(documentIDName, documentIDs)
+	embeddingCol := entity.NewColumnFloatVector(embeddingName, m.cfg.Dim, embeddings)
 
 	// Create index "IVF_FLAT".
 	idx, err := entity.NewIndexIvfFlat(entity.L2, 128)
 	if err != nil {
 		return err
 	}
-	if err := m.client.CreateIndex(ctx, m.cfg.CollectionName, embeddingCol, idx, false); err != nil {
+	if err := m.client.CreateIndex(ctx, m.cfg.CollectionName, embeddingName, idx, false); err != nil {
 		return err
 	}
 
-	_, err = m.client.Insert(ctx, m.cfg.CollectionName, "", idColData, titleColData, headingColData, contentColData, embeddingColData)
+	_, err = m.client.Insert(ctx, m.cfg.CollectionName, "", idCol, textCol, documentIDCol, embeddingCol)
 	return err
 }
 
@@ -136,9 +133,9 @@ func (m *Milvus) Query(ctx context.Context, embedding gptbot.Embedding, topK int
 		m.cfg.CollectionName,
 		nil,
 		"",
-		[]string{idCol, titleCol, headingCol, contentCol},
+		[]string{idName, textName, documentIDName},
 		vec2search,
-		embeddingCol,
+		embeddingName,
 		entity.L2,
 		topK,
 		param,
@@ -165,36 +162,37 @@ func (m *Milvus) createCollectionIfNotExists(ctx context.Context) error {
 
 	schema := &entity.Schema{
 		CollectionName: m.cfg.CollectionName,
-		AutoID:         false,
+		AutoID:         true,
 		Fields: []*entity.Field{
 			{
-				Name:       idCol,
+				Name:       pkName,
 				DataType:   entity.FieldTypeInt64,
 				PrimaryKey: true,
+				AutoID:     true,
 			},
 			{
-				Name:     titleCol,
+				Name:     idName,
 				DataType: entity.FieldTypeVarChar,
 				TypeParams: map[string]string{
-					entity.TypeParamMaxLength: fmt.Sprintf("%d", 50),
+					entity.TypeParamMaxLength: fmt.Sprintf("%d", 65535),
 				},
 			},
 			{
-				Name:     headingCol,
+				Name:     textName,
 				DataType: entity.FieldTypeVarChar,
 				TypeParams: map[string]string{
-					entity.TypeParamMaxLength: fmt.Sprintf("%d", 50),
+					entity.TypeParamMaxLength: fmt.Sprintf("%d", 65535),
 				},
 			},
 			{
-				Name:     contentCol,
+				Name:     documentIDName,
 				DataType: entity.FieldTypeVarChar,
 				TypeParams: map[string]string{
-					entity.TypeParamMaxLength: fmt.Sprintf("%d", 5000),
+					entity.TypeParamMaxLength: fmt.Sprintf("%d", 65535),
 				},
 			},
 			{
-				Name:     embeddingCol,
+				Name:     embeddingName,
 				DataType: entity.FieldTypeFloatVector,
 				TypeParams: map[string]string{
 					entity.TypeParamDim: fmt.Sprintf("%d", m.cfg.Dim),
@@ -208,57 +206,47 @@ func (m *Milvus) createCollectionIfNotExists(ctx context.Context) error {
 }
 
 func constructSimilaritiesFromResult(result *client.SearchResult) ([]*gptbot.Similarity, error) {
-	var iCol *entity.ColumnInt64
-	var tCol *entity.ColumnVarChar
-	var hCol *entity.ColumnVarChar
-	var cCol *entity.ColumnVarChar
+	var idCol *entity.ColumnVarChar
+	var textCol *entity.ColumnVarChar
+	var documentIDCol *entity.ColumnVarChar
 	for _, field := range result.Fields {
 		switch field.Name() {
-		case idCol:
-			if c, ok := field.(*entity.ColumnInt64); ok {
-				iCol = c
-			}
-		case titleCol:
+		case idName:
 			if c, ok := field.(*entity.ColumnVarChar); ok {
-				tCol = c
+				idCol = c
 			}
-		case headingCol:
+		case textName:
 			if c, ok := field.(*entity.ColumnVarChar); ok {
-				hCol = c
+				textCol = c
 			}
-		case contentCol:
+		case documentIDName:
 			if c, ok := field.(*entity.ColumnVarChar); ok {
-				cCol = c
+				documentIDCol = c
 			}
 		}
 	}
 
 	var similarities []*gptbot.Similarity
 	for i := 0; i < result.ResultCount; i++ {
-		iVal, err := iCol.ValueByIdx(i)
+		id, err := idCol.ValueByIdx(i)
 		if err != nil {
 			return nil, err
 		}
-		tVal, err := tCol.ValueByIdx(i)
+		text, err := textCol.ValueByIdx(i)
 		if err != nil {
 			return nil, err
 		}
-		hVal, err := hCol.ValueByIdx(i)
-		if err != nil {
-			return nil, err
-		}
-		cVal, err := cCol.ValueByIdx(i)
+		documentID, err := documentIDCol.ValueByIdx(i)
 		if err != nil {
 			return nil, err
 		}
 
 		similarities = append(similarities, &gptbot.Similarity{
-			Section: gptbot.Section{
-				Title:   tVal,
-				Heading: hVal,
-				Content: cVal,
+			Chunk: &gptbot.Chunk{
+				ID:         id,
+				Text:       text,
+				DocumentID: documentID,
 			},
-			ID:    int(iVal),
 			Score: float64(result.Scores[i]),
 		})
 	}

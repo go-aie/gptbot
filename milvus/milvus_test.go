@@ -33,25 +33,22 @@ func TestMilvus_Query(t *testing.T) {
 			in: "Who won the 2020 Summer Olympics men's high jump?",
 			want: []*gptbot.Similarity{
 				{
-					Section: gptbot.Section{
-						Title:   "Athletics at the 2020 Summer Olympics – Men's long jump",
-						Heading: "Summary",
+					Chunk: &gptbot.Chunk{
+						ID:         "Men's long jump - Summary",
+						DocumentID: "Athletics at the 2020 Summer Olympics",
 					},
-					ID: 2,
 				},
 				{
-					Section: gptbot.Section{
-						Title:   "Athletics at the 2020 Summer Olympics – Men's triple jump",
-						Heading: "Summary",
+					Chunk: &gptbot.Chunk{
+						ID:         "Men's triple jump - Summary",
+						DocumentID: "Athletics at the 2020 Summer Olympics",
 					},
-					ID: 3,
 				},
 				{
-					Section: gptbot.Section{
-						Title:   "Athletics at the 2020 Summer Olympics – Men's high jump",
-						Heading: "Summary",
+					Chunk: &gptbot.Chunk{
+						ID:         "Men's high jump - Summary",
+						DocumentID: "Athletics at the 2020 Summer Olympics",
 					},
-					ID: 0,
 				},
 			},
 		},
@@ -67,9 +64,9 @@ func TestMilvus_Query(t *testing.T) {
 			t.Errorf("err: %v\n", err)
 		}
 
-		// For simplicity, clear fields Content, Embedding and Score.
+		// For simplicity, clear fields Text, Embedding and Score.
 		for _, s := range got {
-			s.Content = ""
+			s.Text = ""
 			s.Embedding = nil
 			s.Score = 0
 		}

@@ -11,7 +11,7 @@ import (
 func Example() {
 	ctx := context.Background()
 
-	store := new(gptbot.LocalVectorStore)
+	store := gptbot.NewLocalVectorStore()
 	if err := store.LoadJSON(ctx, "testdata/olympics_sections.json"); err != nil {
 		fmt.Printf("err: %v\n", err)
 	}
