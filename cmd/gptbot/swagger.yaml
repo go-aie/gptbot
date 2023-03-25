@@ -1,0 +1,138 @@
+swagger: "2.0"
+info:
+  title: "GPTBot-API"
+  version: "1.0.0"
+  description: "Hi here! This is the API documentation for GPTBot.\n//"
+  license:
+    name: "MIT"
+host: "example.com"
+basePath: "/"
+schemes:
+  - "https"
+consumes:
+  - "application/json"
+produces:
+  - "application/json"
+
+paths:
+  /chat:
+    post:
+      description: "Chat sends question to the bot for an answer."
+      operationId: "Chat"
+      parameters:
+        - name: body
+          in: body
+          schema:
+            $ref: "#/definitions/ChatRequestBody"
+      
+      produces:
+        - application/json; charset=utf-8
+      responses:
+        200:
+          description: ""
+          schema:
+            $ref: "#/definitions/ChatResponse"
+
+  /upsert:
+    post:
+      description: "CreateDocuments feeds documents into the vector store."
+      operationId: "CreateDocuments"
+      parameters:
+        - name: body
+          in: body
+          schema:
+            $ref: "#/definitions/CreateDocumentsRequestBody"
+      
+      produces:
+        - application/json; charset=utf-8
+      responses:
+        200:
+          description: ""
+          schema:
+            $ref: "#/definitions/CreateDocumentsResponse"
+
+  /delete:
+    post:
+      description: "DeleteDocuments deletes the specified documents from the vector store."
+      operationId: "DeleteDocuments"
+      parameters:
+        - name: body
+          in: body
+          schema:
+            $ref: "#/definitions/DeleteDocumentsRequestBody"
+      
+      produces:
+        - application/json; charset=utf-8
+      responses:
+        200:
+          description: ""
+          schema:
+            $ref: "#/definitions/DeleteDocumentsResponse"
+
+  /upload:
+    post:
+      description: "UploadFile uploads a file and then feeds the text into the vector store."
+      operationId: "UploadFile"
+      parameters:
+        - name: body
+          in: body
+          schema:
+            $ref: "#/definitions/UploadFileRequestBody"
+      
+      produces:
+        - application/json; charset=utf-8
+      responses:
+        200:
+          description: ""
+          schema:
+            $ref: "#/definitions/UploadFileResponse"
+
+
+definitions:
+  ChatRequestBody:
+    type: object
+    properties:
+      question:
+        type: string
+  ChatResponse:
+    type: object
+    properties:
+      answer:
+        type: string
+  CreateDocumentsRequestBody:
+    type: object
+    properties:
+      documents:
+        type: array
+        items:
+          $ref: "#/definitions/Document"
+  CreateDocumentsResponse:
+    type: object
+  DeleteDocumentsRequestBody:
+    type: object
+    properties:
+      document_ids:
+        type: array
+        items:
+          type: string
+  DeleteDocumentsResponse:
+    type: object
+  Document:
+    type: object
+    properties:
+      id:
+        type: string
+      text:
+        type: string
+      metadata:
+        $ref: "#/definitions/Metadata"
+  Metadata:
+    type: object
+  UploadFileRequestBody:
+    type: object
+    properties:
+      file:
+        type: string
+        format: binary
+  UploadFileResponse:
+    type: object

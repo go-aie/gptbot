@@ -139,6 +139,10 @@ func (m *Milvus) Query(ctx context.Context, embedding gptbot.Embedding, topK int
 		return nil, err
 	}
 
+	if len(result) == 0 {
+		return nil, nil
+	}
+
 	return constructSimilaritiesFromResult(&result[0])
 }
 

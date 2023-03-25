@@ -58,7 +58,9 @@ func main() {
 }
 ```
 
-Note that the above example uses a local vector store. If you have a larger dataset, please consider using a vector search engine (e.g. [Milvus](milvus)).
+**NOTE**:
+- The above example uses a local vector store. If you have a larger dataset, please consider using a vector search engine (e.g. [Milvus](milvus)).
+- With the help of [GPTBot Server](cmd/gptbot), you can even upload documents as files and then start chatting via HTTP (see [API documentation](cmd/gptbot/swagger.yaml)).
 
 
 ## Design
