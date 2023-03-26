@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"os"
 
+	"golang.org/x/exp/maps"
 	"golang.org/x/exp/slices"
 	"gonum.org/v1/gonum/mat"
 )
@@ -80,7 +81,12 @@ func (vs *LocalVectorStore) Query(ctx context.Context, embedding Embedding, topK
 	return similarities[:topK], nil
 }
 
+// Delete deletes the chunks belonging to the given documentIDs.
+// As a special case, empty documentIDs means deleting all chunks.
 func (vs *LocalVectorStore) Delete(ctx context.Context, documentIDs ...string) error {
+	if len(documentIDs) == 0 {
+		maps.Clear(vs.chunks)
+	}
 	for _, documentID := range documentIDs {
 		delete(vs.chunks, documentID)
 	}

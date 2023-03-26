@@ -62,11 +62,7 @@ func NewMilvus(cfg *Config) (*Milvus, error) {
 		cfg:    cfg,
 	}
 
-	if err := m.createCollection(ctx, cfg.CreateNew); err != nil {
-		return nil, err
-	}
-
-	if err := m.client.LoadCollection(ctx, m.cfg.CollectionName, false); err != nil {
+	if err := m.createAndLoadCollection(ctx, cfg.CreateNew); err != nil {
 		return nil, err
 	}
 
@@ -146,7 +142,20 @@ func (m *Milvus) Query(ctx context.Context, embedding gptbot.Embedding, topK int
 	return constructSimilaritiesFromResult(&result[0])
 }
 
+// Delete deletes the chunks belonging to the given documentIDs.
+// As a special case, empty documentIDs means deleting all chunks.
 func (m *Milvus) Delete(ctx context.Context, documentIDs ...string) error {
+	// To delete all chunks, we drop the old collection and create a new one.
+	if len(documentIDs) == 0 {
+		if err := m.client.ReleaseCollection(ctx, m.cfg.CollectionName); err != nil {
+			return err
+		}
+		if err := m.client.DropCollection(ctx, m.cfg.CollectionName); err != nil {
+			return err
+		}
+		return m.createAndLoadCollection(ctx, true)
+	}
+
 	expr := fmt.Sprintf(`document_id in ["%s"]`, strings.Join(documentIDs, `", "`))
 	result, err := m.client.Query(ctx, m.cfg.CollectionName, nil, expr, []string{pkName})
 	if err != nil {
@@ -166,6 +175,13 @@ func (m *Milvus) Delete(ctx context.Context, documentIDs ...string) error {
 		return nil
 	}
 	return m.client.DeleteByPks(ctx, m.cfg.CollectionName, "", pkCol)
+}
+
+func (m *Milvus) createAndLoadCollection(ctx context.Context, createNew bool) error {
+	if err := m.createCollection(ctx, createNew); err != nil {
+		return err
+	}
+	return m.client.LoadCollection(ctx, m.cfg.CollectionName, false)
 }
 
 func (m *Milvus) createCollection(ctx context.Context, createNew bool) error {
