@@ -17,9 +17,10 @@ def create(text):
 
 
 def upload(file):
-    resp = requests.post(URL+'/upload', files=dict(file=file))
-    handle_error(resp)
-    return 'Uploaded successfully!'
+    with open(file.name) as f:
+        resp = requests.post(URL+'/upload', files=dict(file=f))
+        handle_error(resp)
+        return 'Uploaded successfully!'
 
 
 def clear():
@@ -58,19 +59,19 @@ with gr.Blocks() as demo:
         btn.click(lambda: None, None, chatbot, queue=False)
 
     with gr.Tab('Knowledge Base'):
-        state = gr.Textbox(label='state')
+        status = gr.Textbox(label='Status Bar')
         btn = gr.Button(value="Clear All")
-        btn.click(clear, inputs=None, outputs=[state])
+        btn.click(clear, inputs=None, outputs=[status])
 
         with gr.Tab('Document Text'):
             text = gr.Textbox(label='Document Text', lines=8)
             btn = gr.Button(value="Create")
-            btn.click(create, inputs=[text], outputs=[state])
+            btn.click(create, inputs=[text], outputs=[status])
         with gr.Tab('Document File'):
             file = gr.File(label='Document File')
             btn = gr.Button(value="Upload")
-            btn.click(upload, inputs=[file], outputs=[state])
+            btn.click(upload, inputs=[file], outputs=[status])
 
 
 if __name__ == '__main__':
-    demo.launch()
+    demo.launch(share=True)
