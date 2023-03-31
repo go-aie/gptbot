@@ -78,7 +78,6 @@ GPTBot is an implementation of the method demonstrated in [Question Answering us
 | Preprocessor | Preprocess the documents by splitting them into chunks. | ✅[customizable]<br/>[Preprocessor][4]                     |
 | Encoder      | Creates an embedding vector for each chunk.             | ✅[customizable]<br/>[OpenAIEncoder][5]                    |
 | VectorStore  | Stores and queries document chunk embeddings.           | ✅[customizable]<br/>[LocalVectorStore][6]<br/>[Milvus][7] |
-| History      | Stores history messages for multi-turn conversations.   | ✅[customizable]<br/>[LocalHistory][8]                     |
 | Feeder       | Feeds the documents into the vector store.              | /                                                         |
 | Bot          | Question answering bot to chat with.                    | /                                                         |
 
@@ -95,4 +94,3 @@ GPTBot is an implementation of the method demonstrated in [Question Answering us
 [5]: https://pkg.go.dev/github.com/go-aie/gptbot#OpenAIEncoder
 [6]: https://pkg.go.dev/github.com/go-aie/gptbot#LocalVectorStore
 [7]: https://pkg.go.dev/github.com/go-aie/gptbot/milvus#Milvus
-[8]: https://pkg.go.dev/github.com/go-aie/gptbot#LocalHistory

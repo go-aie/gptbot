@@ -18,9 +18,10 @@ type Querier interface {
 	Query(ctx context.Context, embedding Embedding, topK int) ([]*Similarity, error)
 }
 
-type History interface {
-	Load(n int) ([]*chat.Message, error)
-	Add(q, a *chat.Message) error
+// Turn represents a round of dialogue.
+type Turn struct {
+	Question string `json:"question,omitempty"`
+	Answer   string `json:"answer,omitempty"`
 }
 
 type BotConfig struct {
@@ -47,14 +48,6 @@ type BotConfig struct {
 	// TopK specifies how many candidate similarities will be selected to construct the prompt.
 	// Defaults to 3.
 	TopK int
-
-	// History is used to retrieve the history messages if multi-turn conversation is needed.
-	// Defaults to `new(LocalHistory)`.
-	History History
-
-	// HistoryTurnNum is the number of turns (1/2 of the number of messages) to reserve.
-	// Defaults to 0.
-	HistoryTurnNum int
 }
 
 func (cfg *BotConfig) init() {
@@ -66,10 +59,6 @@ func (cfg *BotConfig) init() {
 	}
 	if cfg.PromptTmpl == "" {
 		cfg.PromptTmpl = DefaultPromptTmpl
-	}
-
-	if cfg.History == nil {
-		cfg.History = new(LocalHistory)
 	}
 }
 
@@ -89,35 +78,40 @@ func NewBot(cfg *BotConfig) *Bot {
 	}
 }
 
-func (b *Bot) Chat(ctx context.Context, question string) (string, error) {
+type Conversation interface {
+	Messages() []Turn
+	Store()
+}
+
+func (b *Bot) Chat(ctx context.Context, question string, history ...*Turn) (string, error) {
 	prompt, err := b.constructPrompt(ctx, question)
 	if err != nil {
 		return "", err
 	}
-	questionMessage := &chat.Message{
-		Role:    "user",
-		Content: prompt,
-	}
 
 	var messages []*chat.Message
-	historyMessages, err := b.cfg.History.Load(b.cfg.HistoryTurnNum * 2)
-	if err != nil {
-		return "", err
+	for _, h := range history {
+		messages = append(messages, &chat.Message{
+			Role:    "user",
+			Content: h.Question,
+		})
+		messages = append(messages, &chat.Message{
+			Role:    "assistant",
+			Content: h.Answer,
+		})
 	}
-	messages = append(messages, historyMessages...)
-	messages = append(messages, questionMessage)
+	messages = append(messages, &chat.Message{
+		Role:    "user",
+		Content: prompt,
+	})
 
 	resp, err := b.client.CreateCompletion(ctx, &chat.CreateCompletionParams{Messages: messages})
 	if err != nil {
 		return "", err
 	}
 
-	answerMessage := resp.Choices[0].Message
-	if err := b.cfg.History.Add(questionMessage, answerMessage); err != nil {
-		return "", err
-	}
-
-	return answerMessage.Content, nil
+	answer := resp.Choices[0].Message.Content
+	return answer, nil
 }
 
 func (b *Bot) constructPrompt(ctx context.Context, question string) (string, error) {
