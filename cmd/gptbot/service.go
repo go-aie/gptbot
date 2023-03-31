@@ -31,7 +31,7 @@ type Service interface {
 
 	// Chat sends question to the bot for an answer.
 	//kun:op POST /chat
-	Chat(ctx context.Context, question string) (answer string, err error)
+	Chat(ctx context.Context, question string, history []*gptbot.Turn) (answer string, err error)
 }
 
 type GPTBot struct {
@@ -70,6 +70,6 @@ func (b *GPTBot) DeleteDocuments(ctx context.Context, docIDs []string) error {
 	return b.store.Delete(ctx, docIDs...)
 }
 
-func (b *GPTBot) Chat(ctx context.Context, question string) (answer string, err error) {
-	return b.bot.Chat(ctx, question)
+func (b *GPTBot) Chat(ctx context.Context, question string, history []*gptbot.Turn) (answer string, err error) {
+	return b.bot.Chat(ctx, question, history...)
 }

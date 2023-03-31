@@ -87,7 +87,8 @@ func getDefinitions(schema oas2.Schema) map[string]oas2.Definition {
 	defs := make(map[string]oas2.Definition)
 
 	oas2.AddDefinition(defs, "ChatRequestBody", reflect.ValueOf(&struct {
-		Question string `json:"question"`
+		Question string         `json:"question"`
+		History  []*gptbot.Turn `json:"history"`
 	}{}))
 	oas2.AddResponseDefinitions(defs, schema, "Chat", 200, (&ChatResponse{}).Body())
 

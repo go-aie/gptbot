@@ -94,6 +94,10 @@ definitions:
     properties:
       question:
         type: string
+      history:
+        type: array
+        items:
+          $ref: "#/definitions/Turn"
   ChatResponse:
     type: object
     properties:
@@ -128,6 +132,13 @@ definitions:
         $ref: "#/definitions/Metadata"
   Metadata:
     type: object
+  Turn:
+    type: object
+    properties:
+      question:
+        type: string
+      answer:
+        type: string
   UploadFileRequestBody:
     type: object
     properties:

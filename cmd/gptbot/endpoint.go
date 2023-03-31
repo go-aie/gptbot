@@ -14,7 +14,8 @@ import (
 )
 
 type ChatRequest struct {
-	Question string `json:"question"`
+	Question string         `json:"question"`
+	History  []*gptbot.Turn `json:"history"`
 }
 
 // ValidateChatRequest creates a validator for ChatRequest.
@@ -42,6 +43,7 @@ func MakeEndpointOfChat(s Service) endpoint.Endpoint {
 		answer, err := s.Chat(
 			ctx,
 			req.Question,
+			req.History,
 		)
 		return &ChatResponse{
 			Answer: answer,

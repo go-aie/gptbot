@@ -35,7 +35,7 @@ func NewHTTPClient(codecs httpcodec.Codecs, httpClient *http.Client, baseURL str
 	}, nil
 }
 
-func (c *HTTPClient) Chat(ctx context.Context, question string) (answer string, err error) {
+func (c *HTTPClient) Chat(ctx context.Context, question string, history []*gptbot.Turn) (answer string, err error) {
 	codec := c.codecs.EncodeDecoder("Chat")
 
 	path := "/chat"
@@ -46,9 +46,11 @@ func (c *HTTPClient) Chat(ctx context.Context, question string) (answer string, 
 	}
 
 	reqBody := struct {
-		Question string `json:"question"`
+		Question string         `json:"question"`
+		History  []*gptbot.Turn `json:"history"`
 	}{
 		Question: question,
+		History:  history,
 	}
 	reqBodyReader, headers, err := codec.EncodeRequestBody(&reqBody)
 	if err != nil {

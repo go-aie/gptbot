@@ -29,8 +29,9 @@ def clear():
     return 'Cleared successfully!'
 
 
-def chat(question):
-    resp = requests.post(URL+'/chat', json=dict(question=question))
+def chat(question, history):
+    turns = [dict(question=h[0], answer=h[1]) for h in history]
+    resp = requests.post(URL+'/chat', json=dict(question=question, history=turns))
     handle_error(resp)
     return resp.json()['answer']
 
@@ -39,24 +40,20 @@ with gr.Blocks() as demo:
     with gr.Tab('Chat Bot'):
         chatbot = gr.Chatbot()
         msg = gr.Textbox(label='Input')
-        btn = gr.Button('Clear')
-
-        question = ''
 
         def user(msg, history):
-            global question
             question = msg
             return '', history + [[question, None]]
 
         def bot(history):
-            answer = chat(question)
+            question = history[-1][0]
+            answer = chat(question, history[:-1])
             history[-1][1] = answer
             return history
 
         msg.submit(user, [msg, chatbot], [msg, chatbot], queue=False).then(
             bot, [chatbot], chatbot
         )
-        btn.click(lambda: None, None, chatbot, queue=False)
 
     with gr.Tab('Knowledge Base'):
         status = gr.Textbox(label='Status Bar')
