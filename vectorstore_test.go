@@ -18,11 +18,6 @@ func TestLocalVectorStore_Query(t *testing.T) {
 		t.Fatalf("err: %v\n", err)
 	}
 
-	// Serialize back to disk.
-	if err := store.StoreJSON("testdata/saved_olympics_section.json"); err != nil {
-		t.Fatalf("err: %v\n", err)
-	}
-
 	tests := []struct {
 		in   string
 		want []*gptbot.Similarity

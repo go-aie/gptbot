@@ -45,9 +45,7 @@ func (vs *LocalVectorStore) StoreJSON(filename string) error {
 	var chunks []*Chunk
 
 	for _, chunk := range vs.chunks {
-		for _, c := range chunk {
-			chunks = append(chunks, c)
-		}
+		chunks = append(chunks, chunk...)
 	}
 
 	b, err := json.Marshal(chunks)
