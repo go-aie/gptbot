@@ -20,6 +20,7 @@ func NewLocalVectorStore() *LocalVectorStore {
 	}
 }
 
+// LoadJSON will deserialize from disk into a `LocalVectorStore` based on the provided filename.
 func (vs *LocalVectorStore) LoadJSON(ctx context.Context, filename string) error {
 	data, err := os.ReadFile(filename)
 	if err != nil {
@@ -37,6 +38,27 @@ func (vs *LocalVectorStore) LoadJSON(ctx context.Context, filename string) error
 	}
 
 	return vs.Insert(ctx, chunkMap)
+}
+
+// StoreJSON will serialize the `LocalVectorStore` to disk based on the provided filename.
+func (vs *LocalVectorStore) StoreJSON(filename string) error {
+	var chunks []*Chunk
+
+	for _, chunk := range vs.chunks {
+		chunks = append(chunks, chunk...)
+	}
+
+	b, err := json.Marshal(chunks)
+	if err != nil {
+		return err
+	}
+
+	err = os.WriteFile(filename, b, 0666)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 // GetAllData returns all the internal data. It is mainly used for testing purpose.
