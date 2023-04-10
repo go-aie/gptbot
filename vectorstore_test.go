@@ -70,3 +70,84 @@ func TestLocalVectorStore_Query(t *testing.T) {
 		}
 	}
 }
+
+func TestLocalVectorStore_LoadJSON(t *testing.T) {
+	filename, cleanup := createTemp(t, []byte(`[{"id":"id_1","text":"text_1","document_id":"doc_id_1"}]`))
+	defer cleanup()
+
+	store := gptbot.NewLocalVectorStore()
+	if err := store.LoadJSON(context.Background(), filename); err != nil {
+		t.Fatalf("err: %v\n", err)
+	}
+
+	got := store.GetAllData(context.Background())
+	want := map[string][]*gptbot.Chunk{
+		"doc_id_1": {
+			{
+				ID:         "id_1",
+				Text:       "text_1",
+				DocumentID: "doc_id_1",
+			},
+		},
+	}
+
+	if !cmp.Equal(got, want) {
+		diff := cmp.Diff(got, want)
+		t.Errorf("Want - Got: %s", diff)
+	}
+}
+
+func TestLocalVectorStore_StoreJSON(t *testing.T) {
+	store := gptbot.NewLocalVectorStore()
+	_ = store.Insert(context.Background(), map[string][]*gptbot.Chunk{
+		"doc_id_1": {
+			{
+				ID:         "id_1",
+				Text:       "text_1",
+				DocumentID: "doc_id_1",
+			},
+		},
+	})
+
+	filename, cleanup := createTemp(t, []byte(""))
+	defer cleanup()
+
+	if err := store.StoreJSON(filename); err != nil {
+		t.Fatalf("err: %v\n", err)
+	}
+
+	got, err := os.ReadFile(filename)
+	if err != nil {
+		t.Fatalf("err: %v\n", err)
+	}
+
+	want := []byte(`[{"id":"id_1","text":"text_1","document_id":"doc_id_1","metadata":{}}]`)
+
+	if !cmp.Equal(got, want) {
+		diff := cmp.Diff(got, want)
+		t.Errorf("Want - Got: %s", diff)
+	}
+}
+
+func createTemp(t *testing.T, content []byte) (string, func()) {
+	f, err := os.CreateTemp("", "test")
+	if err != nil {
+		t.Fatalf("err: %v\n", err)
+	}
+
+	filename := f.Name()
+	cleanup := func() {
+		_ = os.Remove(filename)
+	}
+
+	if _, err := f.Write(content); err != nil {
+		cleanup()
+		t.Fatalf("err: %v\n", err)
+	}
+	if err := f.Close(); err != nil {
+		cleanup()
+		t.Fatalf("err: %v\n", err)
+	}
+
+	return filename, cleanup
+}
