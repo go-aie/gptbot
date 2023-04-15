@@ -3,6 +3,7 @@ package gptbot
 import (
 	"bytes"
 	"context"
+	"strings"
 	"text/template"
 
 	"github.com/rakyll/openai-go"
@@ -57,17 +58,31 @@ type BotConfig struct {
 	// Defaults to "gpt-3.5-turbo".
 	Model ModelType
 
-	// PromptTmpl specifies a custom prompt template.
-	// Defaults to DefaultPromptTmpl.
-	PromptTmpl string
-
 	// TopK specifies how many candidate similarities will be selected to construct the prompt.
 	// Defaults to 3.
 	TopK int
 
-	// The maximum number of tokens to generate in the completion
-	// Defaults to 256
+	// MaxTokens is the maximum number of tokens to generate in the chat.
+	// Defaults to 256.
 	MaxTokens int
+
+	// PromptTmpl specifies a custom prompt template for single-turn mode.
+	// Defaults to DefaultPromptTmpl.
+	PromptTmpl string
+
+	// MultiTurnPromptTmpl specifies a custom prompt template for multi-turn mode.
+	// Defaults to DefaultMultiTurnPromptTmpl.
+	//
+	// Prompt-based question answering bot essentially operates in single-turn mode,
+	// since the quality of each answer largely depends on the associated prompt context
+	// (i.e. the most similar document chunks), which all depends on the corresponding
+	// question rather than the conversation history.
+	//
+	// As a workaround, we try to achieve the effect of multi-turn mode by adding an
+	// extra frontend agent, who can respond directly to the user for casual greetings,
+	// and can refine incomplete questions according to the conversation history
+	// before consulting the backend system (i.e. the single-turn Question Answering Bot).
+	MultiTurnPromptTmpl string
 }
 
 func (cfg *BotConfig) init() {
@@ -82,6 +97,9 @@ func (cfg *BotConfig) init() {
 	}
 	if cfg.PromptTmpl == "" {
 		cfg.PromptTmpl = DefaultPromptTmpl
+	}
+	if cfg.MultiTurnPromptTmpl == "" {
+		cfg.MultiTurnPromptTmpl = DefaultMultiTurnPromptTmpl
 	}
 }
 
@@ -109,45 +127,69 @@ func NewBot(cfg *BotConfig) *Bot {
 	return bot
 }
 
-type Conversation interface {
-	Messages() []Turn
-	Store()
+// Chat answers the given question in single-turn mode by default. If non-empty history
+// is specified, multi-turn mode will be enabled. See BotConfig.MultiTurnPromptTmpl for more details.
+func (b *Bot) Chat(ctx context.Context, question string, history ...*Turn) (string, error) {
+	if len(history) > 0 {
+		return b.multiTurnChat(ctx, question, history...)
+	}
+	return b.singleTurnChat(ctx, question)
 }
 
-func (b *Bot) Chat(ctx context.Context, question string, history ...*Turn) (string, error) {
-	prompt, err := b.cfg.constructPrompt(ctx, question)
+func (b *Bot) multiTurnChat(ctx context.Context, question string, history ...*Turn) (string, error) {
+	prefix := "QUERY:"
+
+	t := PromptTemplate(b.cfg.MultiTurnPromptTmpl)
+	prompt, err := t.Render(struct {
+		Turns    []*Turn
+		Question string
+		Prefix   string
+	}{
+		Turns:    history,
+		Question: question,
+		Prefix:   prefix,
+	})
 	if err != nil {
 		return "", err
 	}
 
-	if b.chatClient != nil {
-		return b.doChatCompletion(ctx, question, prompt, history...)
+	refinedQuestionOrReply, err := b.chat(ctx, prompt)
+	if err != nil {
+		return "", err
 	}
 
-	return b.doCompletion(ctx, question, prompt, history...)
+	if strings.HasPrefix(refinedQuestionOrReply, prefix) {
+		return b.singleTurnChat(ctx, refinedQuestionOrReply[len(prefix):])
+	} else {
+		return refinedQuestionOrReply, nil
+	}
+}
+
+func (b *Bot) singleTurnChat(ctx context.Context, question string) (string, error) {
+	prompt, err := b.cfg.constructPrompt(ctx, question)
+	if err != nil {
+		return "", err
+	}
+	return b.chat(ctx, prompt)
+}
+
+func (b *Bot) chat(ctx context.Context, prompt string) (string, error) {
+	if b.chatClient != nil {
+		return b.doChatCompletion(ctx, prompt)
+	}
+	return b.doCompletion(ctx, prompt)
 }
 
 // powered by /v1/chat/completions completion api, supported model like `gpt-3.5-turbo`
-func (b *Bot) doChatCompletion(ctx context.Context, question, prompt string, history ...*Turn) (string, error) {
-	var messages []*chat.Message
-	for _, h := range history {
-		messages = append(messages, &chat.Message{
-			Role:    "user",
-			Content: h.Question,
-		})
-		messages = append(messages, &chat.Message{
-			Role:    "assistant",
-			Content: h.Answer,
-		})
-	}
-	messages = append(messages, &chat.Message{
-		Role:    "user",
-		Content: prompt,
-	})
-
+func (b *Bot) doChatCompletion(ctx context.Context, prompt string) (string, error) {
 	resp, err := b.chatClient.CreateCompletion(ctx, &chat.CreateCompletionParams{
 		MaxTokens: b.cfg.MaxTokens,
-		Messages:  messages,
+		Messages: []*chat.Message{
+			{
+				Role:    "user",
+				Content: prompt,
+			},
+		},
 	})
 	if err != nil {
 		return "", err
@@ -158,7 +200,7 @@ func (b *Bot) doChatCompletion(ctx context.Context, question, prompt string, his
 }
 
 // powered by /v1/completions completion api, supported model like `text-davinci-003`
-func (b *Bot) doCompletion(ctx context.Context, question, prompt string, history ...*Turn) (string, error) {
+func (b *Bot) doCompletion(ctx context.Context, prompt string) (string, error) {
 	resp, err := b.compClient.Create(ctx, &completion.CreateParams{
 		MaxTokens: b.cfg.MaxTokens,
 		Prompt:    []string{prompt},
@@ -168,7 +210,6 @@ func (b *Bot) doCompletion(ctx context.Context, question, prompt string, history
 	}
 
 	answer := resp.Choices[0].Text
-
 	return answer, nil
 }
 
@@ -202,7 +243,7 @@ type PromptData struct {
 
 type PromptTemplate string
 
-func (p PromptTemplate) Render(data PromptData) (string, error) {
+func (p PromptTemplate) Render(data any) (string, error) {
 	tmpl, err := template.New("").Parse(string(p))
 	if err != nil {
 		return "", err
@@ -228,5 +269,32 @@ Context:
 
 Q: {{.Question}}
 A:
+`
+
+	DefaultMultiTurnPromptTmpl = `You are an Agent who communicates with the User, with a System available for answering queries. Your responsibilities include:
+1. For greetings and pleasantries, respond directly to the User;
+2. For other questions, if you cannot understand them, ask the User directly; otherwise, be sure to begin with "{{$.Prefix}}" when querying the System.
+
+Example 1:
+User: What is GPT-3?
+Agent: {{$.Prefix}} What is GPT-3?
+
+Example 2:
+User: How many parameters does it use?
+Agent: Sorry, I don't quite understand what you mean.
+
+Example 3:
+User: What is GPT-3?
+Agent: GPT-3 is an AI model.
+User: How many parameters does it use?
+Agent: {{$.Prefix}} How many parameters does GPT-3 use?
+
+Conversation:
+{{- range $.Turns}}
+User: {{.Question}}
+Agent: {{.Answer}}
+{{- end}}
+User: {{$.Question}}
+Agent:
 `
 )
