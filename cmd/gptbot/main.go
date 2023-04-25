@@ -35,9 +35,9 @@ func main() {
 	})
 
 	svc := NewGPTBot(feeder, store, bot)
-	r := NewHTTPRouter(svc, httpcodec.NewDefaultCodecs(nil, httpcodec.Op(
-		"UploadFile", httpcodec.NewMultipartForm(0),
-	)))
+	r := NewHTTPRouter(svc, httpcodec.NewDefaultCodecs(nil,
+		httpcodec.Op("UploadFile", httpcodec.NewMultipartForm(0)),
+	))
 
 	errs := make(chan error, 2)
 	go func() {

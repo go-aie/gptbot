@@ -27,8 +27,9 @@ func ValidateChatRequest(newSchema func(*ChatRequest) validating.Schema) httpopt
 }
 
 type ChatResponse struct {
-	Answer string `json:"answer"`
-	Err    error  `json:"-"`
+	Answer string        `json:"answer"`
+	Debug  *gptbot.Debug `json:"debug"`
+	Err    error         `json:"-"`
 }
 
 func (r *ChatResponse) Body() interface{} { return r }
@@ -40,13 +41,14 @@ func (r *ChatResponse) Failed() error { return r.Err }
 func MakeEndpointOfChat(s Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (interface{}, error) {
 		req := request.(*ChatRequest)
-		answer, err := s.Chat(
+		answer, debug, err := s.Chat(
 			ctx,
 			req.Question,
 			req.History,
 		)
 		return &ChatResponse{
 			Answer: answer,
+			Debug:  debug,
 			Err:    err,
 		}, nil
 	}
@@ -83,6 +85,43 @@ func MakeEndpointOfCreateDocuments(s Service) endpoint.Endpoint {
 		)
 		return &CreateDocumentsResponse{
 			Err: err,
+		}, nil
+	}
+}
+
+type DebugSplitDocumentRequest struct {
+	Doc *gptbot.Document `json:"doc"`
+}
+
+// ValidateDebugSplitDocumentRequest creates a validator for DebugSplitDocumentRequest.
+func ValidateDebugSplitDocumentRequest(newSchema func(*DebugSplitDocumentRequest) validating.Schema) httpoption.Validator {
+	return httpoption.FuncValidator(func(value interface{}) error {
+		req := value.(*DebugSplitDocumentRequest)
+		return httpoption.Validate(newSchema(req))
+	})
+}
+
+type DebugSplitDocumentResponse struct {
+	Texts []string `json:"texts"`
+	Err   error    `json:"-"`
+}
+
+func (r *DebugSplitDocumentResponse) Body() interface{} { return r }
+
+// Failed implements endpoint.Failer.
+func (r *DebugSplitDocumentResponse) Failed() error { return r.Err }
+
+// MakeEndpointOfDebugSplitDocument creates the endpoint for s.DebugSplitDocument.
+func MakeEndpointOfDebugSplitDocument(s Service) endpoint.Endpoint {
+	return func(ctx context.Context, request interface{}) (interface{}, error) {
+		req := request.(*DebugSplitDocumentRequest)
+		texts, err := s.DebugSplitDocument(
+			ctx,
+			req.Doc,
+		)
+		return &DebugSplitDocumentResponse{
+			Texts: texts,
+			Err:   err,
 		}, nil
 	}
 }

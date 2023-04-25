@@ -52,6 +52,20 @@ func NewHTTPRouter(svc Service, codecs httpcodec.Codecs, opts ...httpoption.Opti
 		),
 	)
 
+	codec = codecs.EncodeDecoder("DebugSplitDocument")
+	validator = options.RequestValidator("DebugSplitDocument")
+	r.Method(
+		"POST", "/debug/split",
+		kithttp.NewServer(
+			MakeEndpointOfDebugSplitDocument(svc),
+			decodeDebugSplitDocumentRequest(codec, validator),
+			httpcodec.MakeResponseEncoder(codec, 200),
+			append(kitOptions,
+				kithttp.ServerErrorEncoder(httpcodec.MakeErrorEncoder(codec)),
+			)...,
+		),
+	)
+
 	codec = codecs.EncodeDecoder("DeleteDocuments")
 	validator = options.RequestValidator("DeleteDocuments")
 	r.Method(
@@ -102,6 +116,22 @@ func decodeChatRequest(codec httpcodec.Codec, validator httpoption.Validator) ki
 func decodeCreateDocumentsRequest(codec httpcodec.Codec, validator httpoption.Validator) kithttp.DecodeRequestFunc {
 	return func(_ context.Context, r *http.Request) (interface{}, error) {
 		var _req CreateDocumentsRequest
+
+		if err := codec.DecodeRequestBody(r, &_req); err != nil {
+			return nil, err
+		}
+
+		if err := validator.Validate(&_req); err != nil {
+			return nil, err
+		}
+
+		return &_req, nil
+	}
+}
+
+func decodeDebugSplitDocumentRequest(codec httpcodec.Codec, validator httpoption.Validator) kithttp.DecodeRequestFunc {
+	return func(_ context.Context, r *http.Request) (interface{}, error) {
+		var _req DebugSplitDocumentRequest
 
 		if err := codec.DecodeRequestBody(r, &_req); err != nil {
 			return nil, err

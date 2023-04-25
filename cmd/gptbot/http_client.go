@@ -35,7 +35,7 @@ func NewHTTPClient(codecs httpcodec.Codecs, httpClient *http.Client, baseURL str
 	}, nil
 }
 
-func (c *HTTPClient) Chat(ctx context.Context, question string, history []*gptbot.Turn) (answer string, err error) {
+func (c *HTTPClient) Chat(ctx context.Context, question string, history []*gptbot.Turn) (answer string, debug *gptbot.Debug, err error) {
 	codec := c.codecs.EncodeDecoder("Chat")
 
 	path := "/chat"
@@ -54,12 +54,12 @@ func (c *HTTPClient) Chat(ctx context.Context, question string, history []*gptbo
 	}
 	reqBodyReader, headers, err := codec.EncodeRequestBody(&reqBody)
 	if err != nil {
-		return "", err
+		return "", nil, err
 	}
 
 	_req, err := http.NewRequestWithContext(ctx, "POST", u.String(), reqBodyReader)
 	if err != nil {
-		return "", err
+		return "", nil, err
 	}
 
 	for k, v := range headers {
@@ -68,7 +68,7 @@ func (c *HTTPClient) Chat(ctx context.Context, question string, history []*gptbo
 
 	_resp, err := c.httpClient.Do(_req)
 	if err != nil {
-		return "", err
+		return "", nil, err
 	}
 	defer _resp.Body.Close()
 
@@ -78,15 +78,15 @@ func (c *HTTPClient) Chat(ctx context.Context, question string, history []*gptbo
 		if err == nil {
 			err = respErr
 		}
-		return "", err
+		return "", nil, err
 	}
 
 	respBody := &ChatResponse{}
 	err = codec.DecodeSuccessResponse(_resp.Body, respBody.Body())
 	if err != nil {
-		return "", err
+		return "", nil, err
 	}
-	return respBody.Answer, nil
+	return respBody.Answer, respBody.Debug, nil
 }
 
 func (c *HTTPClient) CreateDocuments(ctx context.Context, documents []*gptbot.Document) (err error) {
@@ -134,6 +134,58 @@ func (c *HTTPClient) CreateDocuments(ctx context.Context, documents []*gptbot.Do
 	}
 
 	return nil
+}
+
+func (c *HTTPClient) DebugSplitDocument(ctx context.Context, doc *gptbot.Document) (texts []string, err error) {
+	codec := c.codecs.EncodeDecoder("DebugSplitDocument")
+
+	path := "/debug/split"
+	u := &url.URL{
+		Scheme: c.scheme,
+		Host:   c.host,
+		Path:   c.pathPrefix + path,
+	}
+
+	reqBody := struct {
+		Doc *gptbot.Document `json:"doc"`
+	}{
+		Doc: doc,
+	}
+	reqBodyReader, headers, err := codec.EncodeRequestBody(&reqBody)
+	if err != nil {
+		return nil, err
+	}
+
+	_req, err := http.NewRequestWithContext(ctx, "POST", u.String(), reqBodyReader)
+	if err != nil {
+		return nil, err
+	}
+
+	for k, v := range headers {
+		_req.Header.Set(k, v)
+	}
+
+	_resp, err := c.httpClient.Do(_req)
+	if err != nil {
+		return nil, err
+	}
+	defer _resp.Body.Close()
+
+	if _resp.StatusCode < http.StatusOK || _resp.StatusCode > http.StatusNoContent {
+		var respErr error
+		err := codec.DecodeFailureResponse(_resp.Body, &respErr)
+		if err == nil {
+			err = respErr
+		}
+		return nil, err
+	}
+
+	respBody := &DebugSplitDocumentResponse{}
+	err = codec.DecodeSuccessResponse(_resp.Body, respBody.Body())
+	if err != nil {
+		return nil, err
+	}
+	return respBody.Texts, nil
 }
 
 func (c *HTTPClient) DeleteDocuments(ctx context.Context, documentIds []string) (err error) {

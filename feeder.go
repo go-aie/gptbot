@@ -50,6 +50,10 @@ func NewFeeder(cfg *FeederConfig) *Feeder {
 	}
 }
 
+func (f *Feeder) Preprocessor() XPreprocessor {
+	return f.cfg.Preprocessor
+}
+
 func (f *Feeder) Feed(ctx context.Context, docs ...*Document) error {
 	chunks, err := f.cfg.Preprocessor.Preprocess(docs...)
 	if err != nil {

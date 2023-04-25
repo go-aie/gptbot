@@ -31,7 +31,11 @@ type Service interface {
 
 	// Chat sends question to the bot for an answer.
 	//kun:op POST /chat
-	Chat(ctx context.Context, question string, history []*gptbot.Turn) (answer string, err error)
+	Chat(ctx context.Context, question string, history []*gptbot.Turn) (answer string, debug *gptbot.Debug, err error)
+
+	// DebugSplitDocument splits a document into texts. It's mainly used for debugging purposes.
+	//kun:op POST /debug/split
+	DebugSplitDocument(ctx context.Context, doc *gptbot.Document) (texts []string, err error)
 }
 
 type GPTBot struct {
@@ -70,6 +74,23 @@ func (b *GPTBot) DeleteDocuments(ctx context.Context, docIDs []string) error {
 	return b.store.Delete(ctx, docIDs...)
 }
 
-func (b *GPTBot) Chat(ctx context.Context, question string, history []*gptbot.Turn) (answer string, err error) {
-	return b.bot.Chat(ctx, question, history...)
+func (b *GPTBot) Chat(ctx context.Context, question string, history []*gptbot.Turn) (answer string, debug *gptbot.Debug, err error) {
+	return b.bot.DebugChat(ctx, question, history...)
+}
+
+func (b *GPTBot) DebugSplitDocument(ctx context.Context, doc *gptbot.Document) (texts []string, err error) {
+	if doc.ID == "" {
+		doc.ID = uuid.New().String()
+	}
+
+	p := b.feeder.Preprocessor()
+	chunkMap, err := p.Preprocess(doc)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, c := range chunkMap[doc.ID] {
+		texts = append(texts, c.Text)
+	}
+	return texts, nil
 }

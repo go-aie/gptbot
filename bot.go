@@ -136,6 +136,16 @@ func (b *Bot) Chat(ctx context.Context, question string, history ...*Turn) (stri
 	return b.singleTurnChat(ctx, question)
 }
 
+// DebugChat is like Chat but will also return some debugging information.
+func (b *Bot) DebugChat(ctx context.Context, question string, history ...*Turn) (string, *Debug, error) {
+	debug := new(Debug)
+	answer, err := b.Chat(newContext(ctx, debug), question, history...)
+	if err != nil {
+		return "", nil, err
+	}
+	return answer, debug, nil
+}
+
 func (b *Bot) multiTurnChat(ctx context.Context, question string, history ...*Turn) (string, error) {
 	prefix := "QUERY:"
 
@@ -158,6 +168,11 @@ func (b *Bot) multiTurnChat(ctx context.Context, question string, history ...*Tu
 		return "", err
 	}
 
+	// Save the reply of the frontend agent for debugging purposes.
+	if debug, ok := fromContext(ctx); ok {
+		debug.FrontendReply = refinedQuestionOrReply
+	}
+
 	if strings.HasPrefix(refinedQuestionOrReply, prefix) {
 		return b.singleTurnChat(ctx, refinedQuestionOrReply[len(prefix):])
 	} else {
@@ -170,6 +185,12 @@ func (b *Bot) singleTurnChat(ctx context.Context, question string) (string, erro
 	if err != nil {
 		return "", err
 	}
+
+	// Save the prompt of the backend system for debugging purposes.
+	if debug, ok := fromContext(ctx); ok {
+		debug.BackendPrompt = prompt
+	}
+
 	return b.chat(ctx, prompt)
 }
 
@@ -298,3 +319,24 @@ User: {{$.Question}}
 Agent:
 `
 )
+
+type Debug struct {
+	FrontendReply string `json:"frontend_reply,omitempty"`
+	BackendPrompt string `json:"backend_prompt,omitempty"`
+}
+
+type contextKeyT string
+
+var contextKey = contextKeyT("github.com/go-aie/gptbot/bot.Debug")
+
+// NewContext returns a copy of the parent context
+// and associates it with a Debug.
+func newContext(ctx context.Context, d *Debug) context.Context {
+	return context.WithValue(ctx, contextKey, d)
+}
+
+// FromContext returns the Debug bound to the context, if any.
+func fromContext(ctx context.Context) (d *Debug, ok bool) {
+	d, ok = ctx.Value(contextKey).(*Debug)
+	return
+}

@@ -16,6 +16,17 @@ def create(text):
     return 'Created successfully!'
 
 
+def split_text(text):
+    resp = requests.post(URL+'/debug/split', json=dict(doc=dict(text=text)))
+    handle_error(resp)
+    return resp.json()
+
+
+def split_file(file):
+    with open(file.name) as f:
+        return split_text(f.read())
+
+
 def upload(file):
     with open(file.name) as f:
         resp = requests.post(URL+'/upload', files=dict(file=f))
@@ -33,13 +44,16 @@ def chat(question, history):
     turns = [dict(question=h[0], answer=h[1]) for h in history]
     resp = requests.post(URL+'/chat', json=dict(question=question, history=turns))
     handle_error(resp)
-    return resp.json()['answer']
+    json = resp.json()
+    return json['answer'], json['debug'].get('backend_prompt', '')
 
 
 with gr.Blocks() as demo:
     with gr.Tab('Chat Bot'):
         chatbot = gr.Chatbot()
         msg = gr.Textbox(label='Input')
+        with gr.Accordion('Debug', open=False):
+            prompt = gr.Textbox(label='Prompt')
 
         def user(msg, history):
             question = msg
@@ -47,12 +61,12 @@ with gr.Blocks() as demo:
 
         def bot(history):
             question = history[-1][0]
-            answer = chat(question, history[:-1])
+            answer, prompt = chat(question, history[:-1])
             history[-1][1] = answer
-            return history
+            return history, prompt
 
         msg.submit(user, [msg, chatbot], [msg, chatbot], queue=False).then(
-            bot, [chatbot], chatbot
+            bot, [chatbot], [chatbot, prompt]
         )
 
     with gr.Tab('Knowledge Base'):
@@ -64,10 +78,21 @@ with gr.Blocks() as demo:
             text = gr.Textbox(label='Document Text', lines=8)
             btn = gr.Button(value="Create")
             btn.click(create, inputs=[text], outputs=[status])
+
+            with gr.Accordion('Debug', open=False):
+                btn = gr.Button(value="Split")
+                json = gr.JSON()
+                btn.click(split_text, inputs=[text], outputs=[json])
+
         with gr.Tab('Document File'):
             file = gr.File(label='Document File')
             btn = gr.Button(value="Upload")
             btn.click(upload, inputs=[file], outputs=[status])
+
+            with gr.Accordion('Debug', open=False):
+                btn = gr.Button(value="Split")
+                json = gr.JSON()
+                btn.click(split_file, inputs=[file], outputs=[json])
 
 
 if __name__ == '__main__':

@@ -51,6 +51,24 @@ paths:
           schema:
             $ref: "#/definitions/CreateDocumentsResponse"
 
+  /debug/split:
+    post:
+      description: "DebugSplitDocument splits a document into texts. It's mainly used for debugging purposes."
+      operationId: "DebugSplitDocument"
+      parameters:
+        - name: body
+          in: body
+          schema:
+            $ref: "#/definitions/DebugSplitDocumentRequestBody"
+      
+      produces:
+        - application/json; charset=utf-8
+      responses:
+        200:
+          description: ""
+          schema:
+            $ref: "#/definitions/DebugSplitDocumentResponse"
+
   /delete:
     post:
       description: "DeleteDocuments deletes the specified documents from the vector store."
@@ -103,6 +121,8 @@ definitions:
     properties:
       answer:
         type: string
+      debug:
+        $ref: "#/definitions/Debug"
   CreateDocumentsRequestBody:
     type: object
     properties:
@@ -112,6 +132,25 @@ definitions:
           $ref: "#/definitions/Document"
   CreateDocumentsResponse:
     type: object
+  Debug:
+    type: object
+    properties:
+      frontend_reply:
+        type: string
+      backend_prompt:
+        type: string
+  DebugSplitDocumentRequestBody:
+    type: object
+    properties:
+      doc:
+        $ref: "#/definitions/Document"
+  DebugSplitDocumentResponse:
+    type: object
+    properties:
+      texts:
+        type: array
+        items:
+          type: string
   DeleteDocumentsRequestBody:
     type: object
     properties:
