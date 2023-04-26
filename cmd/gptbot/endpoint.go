@@ -27,9 +27,8 @@ func ValidateChatRequest(newSchema func(*ChatRequest) validating.Schema) httpopt
 }
 
 type ChatResponse struct {
-	Answer string        `json:"answer"`
-	Debug  *gptbot.Debug `json:"debug"`
-	Err    error         `json:"-"`
+	Answer string `json:"answer"`
+	Err    error  `json:"-"`
 }
 
 func (r *ChatResponse) Body() interface{} { return r }
@@ -41,14 +40,13 @@ func (r *ChatResponse) Failed() error { return r.Err }
 func MakeEndpointOfChat(s Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (interface{}, error) {
 		req := request.(*ChatRequest)
-		answer, debug, err := s.Chat(
+		answer, err := s.Chat(
 			ctx,
 			req.Question,
 			req.History,
 		)
 		return &ChatResponse{
 			Answer: answer,
-			Debug:  debug,
 			Err:    err,
 		}, nil
 	}
@@ -85,6 +83,47 @@ func MakeEndpointOfCreateDocuments(s Service) endpoint.Endpoint {
 		)
 		return &CreateDocumentsResponse{
 			Err: err,
+		}, nil
+	}
+}
+
+type DebugChatRequest struct {
+	Question string         `json:"question"`
+	History  []*gptbot.Turn `json:"history"`
+}
+
+// ValidateDebugChatRequest creates a validator for DebugChatRequest.
+func ValidateDebugChatRequest(newSchema func(*DebugChatRequest) validating.Schema) httpoption.Validator {
+	return httpoption.FuncValidator(func(value interface{}) error {
+		req := value.(*DebugChatRequest)
+		return httpoption.Validate(newSchema(req))
+	})
+}
+
+type DebugChatResponse struct {
+	Answer string        `json:"answer"`
+	Debug  *gptbot.Debug `json:"debug"`
+	Err    error         `json:"-"`
+}
+
+func (r *DebugChatResponse) Body() interface{} { return r }
+
+// Failed implements endpoint.Failer.
+func (r *DebugChatResponse) Failed() error { return r.Err }
+
+// MakeEndpointOfDebugChat creates the endpoint for s.DebugChat.
+func MakeEndpointOfDebugChat(s Service) endpoint.Endpoint {
+	return func(ctx context.Context, request interface{}) (interface{}, error) {
+		req := request.(*DebugChatRequest)
+		answer, debug, err := s.DebugChat(
+			ctx,
+			req.Question,
+			req.History,
+		)
+		return &DebugChatResponse{
+			Answer: answer,
+			Debug:  debug,
+			Err:    err,
 		}, nil
 	}
 }

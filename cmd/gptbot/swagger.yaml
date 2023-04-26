@@ -51,6 +51,24 @@ paths:
           schema:
             $ref: "#/definitions/CreateDocumentsResponse"
 
+  /debug/chat:
+    post:
+      description: "DebugChat sends question to the bot for an answer as well as some debugging information."
+      operationId: "DebugChat"
+      parameters:
+        - name: body
+          in: body
+          schema:
+            $ref: "#/definitions/DebugChatRequestBody"
+      
+      produces:
+        - application/json; charset=utf-8
+      responses:
+        200:
+          description: ""
+          schema:
+            $ref: "#/definitions/DebugChatResponse"
+
   /debug/split:
     post:
       description: "DebugSplitDocument splits a document into texts. It's mainly used for debugging purposes."
@@ -121,8 +139,6 @@ definitions:
     properties:
       answer:
         type: string
-      debug:
-        $ref: "#/definitions/Debug"
   CreateDocumentsRequestBody:
     type: object
     properties:
@@ -139,6 +155,22 @@ definitions:
         type: string
       backend_prompt:
         type: string
+  DebugChatRequestBody:
+    type: object
+    properties:
+      question:
+        type: string
+      history:
+        type: array
+        items:
+          $ref: "#/definitions/Turn"
+  DebugChatResponse:
+    type: object
+    properties:
+      answer:
+        type: string
+      debug:
+        $ref: "#/definitions/Debug"
   DebugSplitDocumentRequestBody:
     type: object
     properties:

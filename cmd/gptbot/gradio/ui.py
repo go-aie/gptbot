@@ -42,7 +42,7 @@ def clear():
 
 def chat(question, history):
     turns = [dict(question=h[0], answer=h[1]) for h in history]
-    resp = requests.post(URL+'/chat', json=dict(question=question, history=turns))
+    resp = requests.post(URL+'/debug/chat', json=dict(question=question, history=turns))
     handle_error(resp)
     json = resp.json()
     return json['answer'], json['debug'].get('backend_prompt', '')
