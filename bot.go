@@ -62,6 +62,15 @@ type BotConfig struct {
 	// Defaults to 3.
 	TopK int
 
+	// Temperature specifies the sampling temperature to use, between 0 and 1.
+	// Higher values like 0.8 will make the output more random, while lower values
+	// like 0.2 will make it more focused and deterministic. Defaults to 0.7.
+	//
+	// Note that in multi-turn mode, Temperature only applies to the backend
+	// system, and the temperature of the frontend agent is always 0 since we
+	// want its behaviour to be as deterministic as possible.
+	Temperature float64
+
 	// MaxTokens is the maximum number of tokens to generate in the chat.
 	// Defaults to 256.
 	MaxTokens int
@@ -91,6 +100,9 @@ func (cfg *BotConfig) init() {
 	}
 	if cfg.TopK == 0 {
 		cfg.TopK = 3
+	}
+	if cfg.Temperature == 0 {
+		cfg.Temperature = 0.7
 	}
 	if cfg.MaxTokens == 0 {
 		cfg.MaxTokens = 256
@@ -163,7 +175,8 @@ func (b *Bot) multiTurnChat(ctx context.Context, question string, history ...*Tu
 		return "", err
 	}
 
-	refinedQuestionOrReply, err := b.chat(ctx, prompt)
+	// Here we set temperature to 0 since we want the output to be focused and deterministic.
+	refinedQuestionOrReply, err := b.chat(ctx, prompt, 0)
 	if err != nil {
 		return "", err
 	}
@@ -191,26 +204,27 @@ func (b *Bot) singleTurnChat(ctx context.Context, question string) (string, erro
 		debug.BackendPrompt = prompt
 	}
 
-	return b.chat(ctx, prompt)
+	return b.chat(ctx, prompt, b.cfg.Temperature)
 }
 
-func (b *Bot) chat(ctx context.Context, prompt string) (string, error) {
+func (b *Bot) chat(ctx context.Context, prompt string, temperature float64) (string, error) {
 	if b.chatClient != nil {
-		return b.doChatCompletion(ctx, prompt)
+		return b.doChatCompletion(ctx, prompt, temperature)
 	}
-	return b.doCompletion(ctx, prompt)
+	return b.doCompletion(ctx, prompt, temperature)
 }
 
 // powered by /v1/chat/completions completion api, supported model like `gpt-3.5-turbo`
-func (b *Bot) doChatCompletion(ctx context.Context, prompt string) (string, error) {
+func (b *Bot) doChatCompletion(ctx context.Context, prompt string, temperature float64) (string, error) {
 	resp, err := b.chatClient.CreateCompletion(ctx, &chat.CreateCompletionParams{
-		MaxTokens: b.cfg.MaxTokens,
 		Messages: []*chat.Message{
 			{
 				Role:    "user",
 				Content: prompt,
 			},
 		},
+		Temperature: temperature,
+		MaxTokens:   b.cfg.MaxTokens,
 	})
 	if err != nil {
 		return "", err
@@ -221,10 +235,11 @@ func (b *Bot) doChatCompletion(ctx context.Context, prompt string) (string, erro
 }
 
 // powered by /v1/completions completion api, supported model like `text-davinci-003`
-func (b *Bot) doCompletion(ctx context.Context, prompt string) (string, error) {
+func (b *Bot) doCompletion(ctx context.Context, prompt string, temperature float64) (string, error) {
 	resp, err := b.compClient.Create(ctx, &completion.CreateParams{
-		MaxTokens: b.cfg.MaxTokens,
-		Prompt:    []string{prompt},
+		Prompt:      []string{prompt},
+		Temperature: temperature,
+		MaxTokens:   b.cfg.MaxTokens,
 	})
 	if err != nil {
 		return "", err
