@@ -43,7 +43,7 @@ func main() {
     })
 
     question := "When was GPT-3 released?"
-    answer, err := bot.Chat(ctx, question)
+    answer, _, err := bot.Chat(ctx, question)
     if err != nil {
         fmt.Printf("err: %v", err)
         return

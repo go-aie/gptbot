@@ -36,7 +36,7 @@ func Example() {
 	})
 
 	question := "When was GPT-3 released?"
-	answer, err := bot.Chat(ctx, question)
+	answer, _, err := bot.Chat(ctx, question)
 	if err != nil {
 		fmt.Printf("err: %v", err)
 		return
@@ -45,7 +45,7 @@ func Example() {
 	fmt.Printf("A: %s\n", answer)
 
 	question = "How many parameters does GPT-3 use?"
-	answer, err = bot.Chat(ctx, question)
+	answer, _, err = bot.Chat(ctx, question)
 	if err != nil {
 		fmt.Printf("err: %v", err)
 		return
@@ -91,7 +91,7 @@ func Example_multiTurn() {
 	var history []*gptbot.Turn
 
 	question := "When was GPT-3 released?"
-	answer, err := bot.Chat(ctx, question, history...)
+	answer, _, err := bot.Chat(ctx, question, gptbot.ChatHistory(history...))
 	if err != nil {
 		fmt.Printf("err: %v", err)
 		return
@@ -106,7 +106,7 @@ func Example_multiTurn() {
 	})
 
 	question = "How many parameters does it use?" // In multi-turn mode, here "it" will be inferred to "GPT-3".
-	answer, err = bot.Chat(ctx, question, history...)
+	answer, _, err = bot.Chat(ctx, question, gptbot.ChatHistory(history...))
 	if err != nil {
 		fmt.Printf("err: %v", err)
 		return

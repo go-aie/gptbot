@@ -25,7 +25,7 @@ func TestBot_Chat(t *testing.T) {
 	})
 
 	question := "Who won the 2020 Summer Olympics men's high jump?"
-	answer, err := bot.Chat(ctx, question)
+	answer, _, err := bot.Chat(ctx, question)
 	if err != nil {
 		t.Fatalf("err: %v\n", err)
 	}
@@ -52,7 +52,7 @@ func TestBot_ChatWithHistory(t *testing.T) {
 	})
 
 	question := "Who won the 2020 Summer Olympics men's high jump?"
-	answer, err := bot.Chat(ctx, question, history...)
+	answer, _, err := bot.Chat(ctx, question, gptbot.ChatHistory(history...))
 	if err != nil {
 		t.Fatalf("err: %v\n", err)
 	}
@@ -66,7 +66,7 @@ func TestBot_ChatWithHistory(t *testing.T) {
 	}
 
 	question = "Did they agree to share the gold medal?" // In multi-turn mode, here "they" will be inferred to the names of the winners.
-	answer, err = bot.Chat(ctx, question, history...)
+	answer, _, err = bot.Chat(ctx, question, gptbot.ChatHistory(history...))
 	if err != nil {
 		t.Fatalf("err: %v\n", err)
 	}

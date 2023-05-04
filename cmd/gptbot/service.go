@@ -29,13 +29,10 @@ type Service interface {
 	//kun:op POST /delete
 	DeleteDocuments(ctx context.Context, documentIds []string) error
 
-	// Chat sends question to the bot for an answer.
+	// Chat sends question to the bot for an answer. If inDebug (i.e. the debug mode)
+	// is enabled, non-nil debug (i.e. the debugging information) will be returned.
 	//kun:op POST /chat
-	Chat(ctx context.Context, question string, history []*gptbot.Turn) (answer string, err error)
-
-	// DebugChat sends question to the bot for an answer as well as some debugging information.
-	//kun:op POST /debug/chat
-	DebugChat(ctx context.Context, question string, history []*gptbot.Turn) (answer string, debug *gptbot.Debug, err error)
+	Chat(ctx context.Context, question string, inDebug bool, history []*gptbot.Turn) (answer string, debug *gptbot.Debug, err error)
 
 	// DebugSplitDocument splits a document into texts. It's mainly used for debugging purposes.
 	//kun:op POST /debug/split
@@ -78,12 +75,8 @@ func (b *GPTBot) DeleteDocuments(ctx context.Context, docIDs []string) error {
 	return b.store.Delete(ctx, docIDs...)
 }
 
-func (b *GPTBot) Chat(ctx context.Context, question string, history []*gptbot.Turn) (answer string, err error) {
-	return b.bot.Chat(ctx, question, history...)
-}
-
-func (b *GPTBot) DebugChat(ctx context.Context, question string, history []*gptbot.Turn) (answer string, debug *gptbot.Debug, err error) {
-	return b.bot.DebugChat(ctx, question, history...)
+func (b *GPTBot) Chat(ctx context.Context, question string, inDebug bool, history []*gptbot.Turn) (answer string, debug *gptbot.Debug, err error) {
+	return b.bot.Chat(ctx, question, gptbot.ChatDebug(inDebug), gptbot.ChatHistory(history...))
 }
 
 func (b *GPTBot) DebugSplitDocument(ctx context.Context, doc *gptbot.Document) (texts []string, err error) {

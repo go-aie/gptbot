@@ -139,26 +139,29 @@ func NewBot(cfg *BotConfig) *Bot {
 	return bot
 }
 
-// Chat answers the given question in single-turn mode by default. If non-empty history
+// Chat answers the given question in single-turn mode by default. If ChatHistory with non-empty history
 // is specified, multi-turn mode will be enabled. See BotConfig.MultiTurnPromptTmpl for more details.
-func (b *Bot) Chat(ctx context.Context, question string, history ...*Turn) (string, error) {
-	if len(history) > 0 {
-		return b.multiTurnChat(ctx, question, history...)
+func (b *Bot) Chat(ctx context.Context, question string, options ...ChatOption) (answer string, debug *Debug, err error) {
+	opts := new(chatOptions)
+	for _, option := range options {
+		option(opts)
 	}
-	return b.singleTurnChat(ctx, question)
+
+	if opts.Debug {
+		debug = new(Debug)
+		ctx = newContext(ctx, debug)
+	}
+
+	if len(opts.History) > 0 {
+		answer, err = b.multiTurnChat(ctx, question, opts)
+		return
+	}
+
+	answer, err = b.singleTurnChat(ctx, question, opts)
+	return
 }
 
-// DebugChat is like Chat but will also return some debugging information.
-func (b *Bot) DebugChat(ctx context.Context, question string, history ...*Turn) (string, *Debug, error) {
-	debug := new(Debug)
-	answer, err := b.Chat(newContext(ctx, debug), question, history...)
-	if err != nil {
-		return "", nil, err
-	}
-	return answer, debug, nil
-}
-
-func (b *Bot) multiTurnChat(ctx context.Context, question string, history ...*Turn) (string, error) {
+func (b *Bot) multiTurnChat(ctx context.Context, question string, opts *chatOptions) (string, error) {
 	prefix := "QUERY:"
 
 	t := PromptTemplate(b.cfg.MultiTurnPromptTmpl)
@@ -167,7 +170,7 @@ func (b *Bot) multiTurnChat(ctx context.Context, question string, history ...*Tu
 		Question string
 		Prefix   string
 	}{
-		Turns:    history,
+		Turns:    opts.History,
 		Question: question,
 		Prefix:   prefix,
 	})
@@ -187,14 +190,14 @@ func (b *Bot) multiTurnChat(ctx context.Context, question string, history ...*Tu
 	}
 
 	if strings.HasPrefix(refinedQuestionOrReply, prefix) {
-		return b.singleTurnChat(ctx, refinedQuestionOrReply[len(prefix):])
+		return b.singleTurnChat(ctx, refinedQuestionOrReply[len(prefix):], opts)
 	} else {
 		return refinedQuestionOrReply, nil
 	}
 }
 
-func (b *Bot) singleTurnChat(ctx context.Context, question string) (string, error) {
-	prompt, err := b.cfg.constructPrompt(ctx, question)
+func (b *Bot) singleTurnChat(ctx context.Context, question string, opts *chatOptions) (string, error) {
+	prompt, err := b.cfg.constructPrompt(ctx, question, opts)
 	if err != nil {
 		return "", err
 	}
@@ -249,7 +252,7 @@ func (b *Bot) doCompletion(ctx context.Context, prompt string, temperature float
 	return answer, nil
 }
 
-func (b *BotConfig) constructPrompt(ctx context.Context, question string) (string, error) {
+func (b *BotConfig) constructPrompt(ctx context.Context, question string, opts *chatOptions) (string, error) {
 	emb, err := b.Encoder.Encode(ctx, question)
 	if err != nil {
 		return "", err
@@ -270,6 +273,21 @@ func (b *BotConfig) constructPrompt(ctx context.Context, question string) (strin
 		Question: question,
 		Sections: texts,
 	})
+}
+
+type chatOptions struct {
+	Debug   bool
+	History []*Turn
+}
+
+type ChatOption func(opts *chatOptions)
+
+func ChatDebug(debug bool) ChatOption {
+	return func(opts *chatOptions) { opts.Debug = debug }
+}
+
+func ChatHistory(history ...*Turn) ChatOption {
+	return func(opts *chatOptions) { opts.History = history }
 }
 
 type PromptData struct {
