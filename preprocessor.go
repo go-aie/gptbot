@@ -64,6 +64,7 @@ func (p *Preprocessor) Preprocess(docs ...*Document) (map[string][]*Chunk, error
 
 	for _, doc := range docs {
 		docID := doc.ID
+		meta := doc.Metadata
 		if docID == "" {
 			docID = uuid.New().String()
 		}
@@ -78,6 +79,7 @@ func (p *Preprocessor) Preprocess(docs ...*Document) (map[string][]*Chunk, error
 				ID:         fmt.Sprintf("%s_%d", docID, i),
 				Text:       textChunk,
 				DocumentID: docID,
+				Metadata:   meta,
 			})
 		}
 	}

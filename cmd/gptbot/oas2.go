@@ -34,6 +34,7 @@ paths:
   /chat:
     post:
       description: "Chat sends question to the bot for an answer. If inDebug (i.e. the debug mode)\nis enabled, non-nil debug (i.e. the debugging information) will be returned."
+      summary: "Chat sends question to the bot for an answer. If inDebug (i.e. the debug mode)\nis enabled, non-nil debug (i.e. the debugging information) will be returned."
       operationId: "Chat"
       parameters:
         - name: body
@@ -44,6 +45,7 @@ paths:
   /upsert:
     post:
       description: "CreateDocuments feeds documents into the vector store."
+      summary: "CreateDocuments feeds documents into the vector store."
       operationId: "CreateDocuments"
       parameters:
         - name: body
@@ -54,6 +56,7 @@ paths:
   /debug/split:
     post:
       description: "DebugSplitDocument splits a document into texts. It's mainly used for debugging purposes."
+      summary: "DebugSplitDocument splits a document into texts. It's mainly used for debugging purposes."
       operationId: "DebugSplitDocument"
       parameters:
         - name: body
@@ -64,6 +67,7 @@ paths:
   /delete:
     post:
       description: "DeleteDocuments deletes the specified documents from the vector store."
+      summary: "DeleteDocuments deletes the specified documents from the vector store."
       operationId: "DeleteDocuments"
       parameters:
         - name: body
@@ -74,8 +78,14 @@ paths:
   /upload:
     post:
       description: "UploadFile uploads a file and then feeds the text into the vector store."
+      summary: "UploadFile uploads a file and then feeds the text into the vector store."
       operationId: "UploadFile"
       parameters:
+        - name: corpus_id
+          in: query
+          required: false
+          type: string
+          description: ""
         - name: body
           in: body
           schema:
@@ -98,6 +108,7 @@ func getDefinitions(schema oas2.Schema) map[string]oas2.Definition {
 	defs := make(map[string]oas2.Definition)
 
 	oas2.AddDefinition(defs, "ChatRequestBody", reflect.ValueOf(&struct {
+		CorpusID string         `json:"corpus_id"`
 		Question string         `json:"question"`
 		InDebug  bool           `json:"in_debug"`
 		History  []*gptbot.Turn `json:"history"`

@@ -14,6 +14,7 @@ import (
 )
 
 type ChatRequest struct {
+	CorpusID string         `json:"corpus_id"`
 	Question string         `json:"question"`
 	InDebug  bool           `json:"in_debug"`
 	History  []*gptbot.Turn `json:"history"`
@@ -44,6 +45,7 @@ func MakeEndpointOfChat(s Service) endpoint.Endpoint {
 		req := request.(*ChatRequest)
 		answer, debug, err := s.Chat(
 			ctx,
+			req.CorpusID,
 			req.Question,
 			req.InDebug,
 			req.History,
@@ -164,7 +166,8 @@ func MakeEndpointOfDeleteDocuments(s Service) endpoint.Endpoint {
 }
 
 type UploadFileRequest struct {
-	File *httpcodec.FormFile `json:"file"`
+	CorpusID string              `json:"-"`
+	File     *httpcodec.FormFile `json:"file"`
 }
 
 // ValidateUploadFileRequest creates a validator for UploadFileRequest.
@@ -190,6 +193,7 @@ func MakeEndpointOfUploadFile(s Service) endpoint.Endpoint {
 		req := request.(*UploadFileRequest)
 		err := s.UploadFile(
 			ctx,
+			req.CorpusID,
 			req.File,
 		)
 		return &UploadFileResponse{

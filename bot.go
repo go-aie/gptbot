@@ -32,7 +32,7 @@ type Encoder interface {
 }
 
 type Querier interface {
-	Query(ctx context.Context, embedding Embedding, topK int) ([]*Similarity, error)
+	Query(ctx context.Context, embedding Embedding, corpusID string, topK int) ([]*Similarity, error)
 }
 
 // Turn represents a round of dialogue.
@@ -258,7 +258,7 @@ func (b *BotConfig) constructPrompt(ctx context.Context, question string, opts *
 		return "", err
 	}
 
-	similarities, err := b.Querier.Query(ctx, emb, b.TopK)
+	similarities, err := b.Querier.Query(ctx, emb, opts.CorpusID, b.TopK)
 	if err != nil {
 		return "", err
 	}
@@ -276,8 +276,9 @@ func (b *BotConfig) constructPrompt(ctx context.Context, question string, opts *
 }
 
 type chatOptions struct {
-	Debug   bool
-	History []*Turn
+	Debug    bool
+	CorpusID string
+	History  []*Turn
 }
 
 type ChatOption func(opts *chatOptions)
@@ -288,6 +289,10 @@ func ChatDebug(debug bool) ChatOption {
 
 func ChatHistory(history ...*Turn) ChatOption {
 	return func(opts *chatOptions) { opts.History = history }
+}
+
+func ChatCorpusID(corpusID string) ChatOption {
+	return func(opts *chatOptions) { opts.CorpusID = corpusID }
 }
 
 type PromptData struct {

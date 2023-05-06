@@ -23,7 +23,8 @@ type Service interface {
 
 	// UploadFile uploads a file and then feeds the text into the vector store.
 	//kun:op POST /upload
-	UploadFile(ctx context.Context, file *httpcodec.FormFile) (err error)
+	//kun:param corpusID in=query name=corpus_id
+	UploadFile(ctx context.Context, corpusID string, file *httpcodec.FormFile) (err error)
 
 	// DeleteDocuments deletes the specified documents from the vector store.
 	//kun:op POST /delete
@@ -32,7 +33,7 @@ type Service interface {
 	// Chat sends question to the bot for an answer. If inDebug (i.e. the debug mode)
 	// is enabled, non-nil debug (i.e. the debugging information) will be returned.
 	//kun:op POST /chat
-	Chat(ctx context.Context, question string, inDebug bool, history []*gptbot.Turn) (answer string, debug *gptbot.Debug, err error)
+	Chat(ctx context.Context, corpusID, question string, inDebug bool, history []*gptbot.Turn) (answer string, debug *gptbot.Debug, err error)
 
 	// DebugSplitDocument splits a document into texts. It's mainly used for debugging purposes.
 	//kun:op POST /debug/split
@@ -57,7 +58,7 @@ func (b *GPTBot) CreateDocuments(ctx context.Context, docs []*gptbot.Document) e
 	return b.feeder.Feed(ctx, docs...)
 }
 
-func (b *GPTBot) UploadFile(ctx context.Context, file *httpcodec.FormFile) (err error) {
+func (b *GPTBot) UploadFile(ctx context.Context, corpusID string, file *httpcodec.FormFile) (err error) {
 	defer file.File.Close()
 	data, err := io.ReadAll(file.File)
 	if err != nil {
@@ -67,6 +68,9 @@ func (b *GPTBot) UploadFile(ctx context.Context, file *httpcodec.FormFile) (err 
 	doc := &gptbot.Document{
 		ID:   uuid.New().String(),
 		Text: string(data),
+		Metadata: gptbot.Metadata{
+			CorpusID: corpusID,
+		},
 	}
 	return b.feeder.Feed(ctx, doc)
 }
@@ -75,8 +79,8 @@ func (b *GPTBot) DeleteDocuments(ctx context.Context, docIDs []string) error {
 	return b.store.Delete(ctx, docIDs...)
 }
 
-func (b *GPTBot) Chat(ctx context.Context, question string, inDebug bool, history []*gptbot.Turn) (answer string, debug *gptbot.Debug, err error) {
-	return b.bot.Chat(ctx, question, gptbot.ChatDebug(inDebug), gptbot.ChatHistory(history...))
+func (b *GPTBot) Chat(ctx context.Context, corpusID, question string, inDebug bool, history []*gptbot.Turn) (answer string, debug *gptbot.Debug, err error) {
+	return b.bot.Chat(ctx, question, gptbot.ChatCorpusID(corpusID), gptbot.ChatDebug(inDebug), gptbot.ChatHistory(history...))
 }
 
 func (b *GPTBot) DebugSplitDocument(ctx context.Context, doc *gptbot.Document) (texts []string, err error) {

@@ -14,7 +14,7 @@ import (
 )
 
 const (
-	pkName, idName, textName, documentIDName, embeddingName = "pk", "id", "text", "document_id", "embedding"
+	pkName, idName, textName, documentIDName, corpusIDName, embeddingName = "pk", "id", "text", "document_id", "corpus_id", "embedding"
 )
 
 type Config struct {
@@ -93,11 +93,13 @@ func (m *Milvus) Insert(ctx context.Context, chunks map[string][]*gptbot.Chunk) 
 	var textList []string
 	var documentIDList []string
 	var embeddingList [][]float32
+	var corpusIDList []string
 	for _, chunkList := range chunks {
 		for _, chunk := range chunkList {
 			idList = append(idList, chunk.ID)
 			textList = append(textList, chunk.Text)
 			documentIDList = append(documentIDList, chunk.DocumentID)
+			corpusIDList = append(corpusIDList, chunk.Metadata.CorpusID)
 			embeddingList = append(embeddingList, xslices.Float64ToNumber[float32](chunk.Embedding))
 		}
 	}
@@ -105,15 +107,21 @@ func (m *Milvus) Insert(ctx context.Context, chunks map[string][]*gptbot.Chunk) 
 	idCol := entity.NewColumnVarChar(idName, idList)
 	textCol := entity.NewColumnVarChar(textName, textList)
 	documentIDCol := entity.NewColumnVarChar(documentIDName, documentIDList)
+	corpusIDCol := entity.NewColumnVarChar(corpusIDName, corpusIDList)
 	embeddingCol := entity.NewColumnFloatVector(embeddingName, m.cfg.Dim, embeddingList)
 
-	_, err := m.client.Insert(ctx, m.cfg.CollectionName, "", idCol, textCol, documentIDCol, embeddingCol)
+	_, err := m.client.Insert(ctx, m.cfg.CollectionName, "", idCol, textCol, documentIDCol, corpusIDCol, embeddingCol)
 	return err
 }
 
 // Query searches similarities of the given embedding with default consistency level.
-func (m *Milvus) Query(ctx context.Context, embedding gptbot.Embedding, topK int) ([]*gptbot.Similarity, error) {
+func (m *Milvus) Query(ctx context.Context, embedding gptbot.Embedding, corpusID string, topK int) ([]*gptbot.Similarity, error) {
 	float32Emb := xslices.Float64ToNumber[float32](embedding)
+	expr := ""
+	if corpusID != "" {
+		expr = fmt.Sprintf(`corpus_id == "%s"`, corpusID)
+	}
+
 	vec2search := []entity.Vector{
 		entity.FloatVector(float32Emb),
 	}
@@ -123,8 +131,8 @@ func (m *Milvus) Query(ctx context.Context, embedding gptbot.Embedding, topK int
 		ctx,
 		m.cfg.CollectionName,
 		nil,
-		"",
-		[]string{idName, textName, documentIDName},
+		expr,
+		[]string{idName, textName, documentIDName, corpusIDName},
 		vec2search,
 		embeddingName,
 		entity.L2,
@@ -232,6 +240,13 @@ func (m *Milvus) createCollection(ctx context.Context, createNew bool) error {
 				},
 			},
 			{
+				Name:     corpusIDName,
+				DataType: entity.FieldTypeVarChar,
+				TypeParams: map[string]string{
+					entity.TypeParamMaxLength: fmt.Sprintf("%d", 65535),
+				},
+			},
+			{
 				Name:     embeddingName,
 				DataType: entity.FieldTypeFloatVector,
 				TypeParams: map[string]string{
@@ -258,6 +273,8 @@ func constructSimilaritiesFromResult(result *client.SearchResult) ([]*gptbot.Sim
 	var idCol *entity.ColumnVarChar
 	var textCol *entity.ColumnVarChar
 	var documentIDCol *entity.ColumnVarChar
+	var corpusIDCol *entity.ColumnVarChar
+
 	for _, field := range result.Fields {
 		switch field.Name() {
 		case idName:
@@ -271,6 +288,10 @@ func constructSimilaritiesFromResult(result *client.SearchResult) ([]*gptbot.Sim
 		case documentIDName:
 			if c, ok := field.(*entity.ColumnVarChar); ok {
 				documentIDCol = c
+			}
+		case corpusIDName:
+			if c, ok := field.(*entity.ColumnVarChar); ok {
+				corpusIDCol = c
 			}
 		}
 	}
@@ -290,11 +311,19 @@ func constructSimilaritiesFromResult(result *client.SearchResult) ([]*gptbot.Sim
 			return nil, err
 		}
 
+		corpusID, err := corpusIDCol.ValueByIdx(i)
+		if err != nil {
+			return nil, err
+		}
+
 		similarities = append(similarities, &gptbot.Similarity{
 			Chunk: &gptbot.Chunk{
 				ID:         id,
 				Text:       text,
 				DocumentID: documentID,
+				Metadata: gptbot.Metadata{
+					CorpusID: corpusID,
+				},
 			},
 			Score: float64(result.Scores[i]),
 		})

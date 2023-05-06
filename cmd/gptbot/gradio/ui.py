@@ -1,8 +1,11 @@
+import os
+
 import gradio as gr
 import requests
 
 
 URL = 'http://127.0.0.1:8080'
+CORPUS_ID = os.getenv('CORPUS_ID', 'meiqia:1')
 
 
 def handle_error(resp):
@@ -29,7 +32,8 @@ def split_file(file):
 
 def upload(file):
     with open(file.name) as f:
-        resp = requests.post(URL+'/upload', files=dict(file=f))
+        url = f'{URL}/upload?corpus_id={CORPUS_ID}'
+        resp = requests.post(url, files=dict(file=f))
         handle_error(resp)
         return 'Uploaded successfully!'
 

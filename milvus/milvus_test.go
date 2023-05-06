@@ -36,18 +36,27 @@ func TestMilvus_Query(t *testing.T) {
 					Chunk: &gptbot.Chunk{
 						ID:         "Summary",
 						DocumentID: "Athletics at the 2020 Summer Olympics - Men's long jump",
+						Metadata: gptbot.Metadata{
+							CorpusID: "olympic:2020",
+						},
 					},
 				},
 				{
 					Chunk: &gptbot.Chunk{
 						ID:         "Summary",
 						DocumentID: "Athletics at the 2020 Summer Olympics - Men's triple jump",
+						Metadata: gptbot.Metadata{
+							CorpusID: "olympic:2020",
+						},
 					},
 				},
 				{
 					Chunk: &gptbot.Chunk{
 						ID:         "Summary",
 						DocumentID: "Athletics at the 2020 Summer Olympics - Men's high jump",
+						Metadata: gptbot.Metadata{
+							CorpusID: "olympic:2020",
+						},
 					},
 				},
 			},
@@ -59,7 +68,7 @@ func TestMilvus_Query(t *testing.T) {
 			t.Errorf("err: %v\n", err)
 		}
 
-		got, err := store.Query(context.Background(), embedding, 3)
+		got, err := store.Query(context.Background(), embedding, "olympic:2020", 3)
 		if err != nil {
 			t.Errorf("err: %v\n", err)
 		}
