@@ -14,13 +14,13 @@ def handle_error(resp):
 
 
 def create(text):
-    resp = requests.post(URL+'/upsert', json=dict(documents=[dict(text=text)]))
+    resp = requests.post(URL+'/upsert', json=dict(documents=[dict(text=text,metadata={'corpus_id':CORPUS_ID})]))
     handle_error(resp)
     return 'Created successfully!'
 
 
 def split_text(text):
-    resp = requests.post(URL+'/debug/split', json=dict(doc=dict(text=text)))
+    resp = requests.post(URL+'/debug/split', json=dict(doc=dict(text=text,metadata={'corpus_id':CORPUS_ID})))
     handle_error(resp)
     return resp.json()
 
@@ -46,7 +46,7 @@ def clear():
 
 def chat(question, history):
     turns = [dict(question=h[0], answer=h[1]) for h in history]
-    resp = requests.post(URL+'/chat', json=dict(question=question, in_debug=True, history=turns))
+    resp = requests.post(URL+'/chat', json=dict(question=question, in_debug=True, corpus_id=CORPUS_ID, history=turns))
     handle_error(resp)
     json = resp.json()
     return json['answer'], json['debug'].get('backend_prompt', '')
