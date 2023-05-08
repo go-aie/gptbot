@@ -169,13 +169,6 @@ func decodeUploadFileRequest(codec httpcodec.Codec, validator httpoption.Validat
 			return nil, err
 		}
 
-		corpusID := r.URL.Query()["corpus_id"]
-		if len(corpusID) > 0 {
-			if err := codec.DecodeRequestParam("corpusID", corpusID, &_req.CorpusID); err != nil {
-				return nil, err
-			}
-		}
-
 		if err := validator.Validate(&_req); err != nil {
 			return nil, err
 		}

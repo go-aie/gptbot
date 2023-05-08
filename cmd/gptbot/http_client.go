@@ -249,16 +249,12 @@ func (c *HTTPClient) UploadFile(ctx context.Context, corpusID string, file *http
 		Path:   c.pathPrefix + path,
 	}
 
-	q := u.Query()
-	for _, v := range codec.EncodeRequestParam("corpusID", corpusID) {
-		q.Add("corpus_id", v)
-	}
-	u.RawQuery = q.Encode()
-
 	reqBody := struct {
-		File *httpcodec.FormFile `json:"file"`
+		CorpusID string              `json:"corpus_id"`
+		File     *httpcodec.FormFile `json:"file"`
 	}{
-		File: file,
+		CorpusID: corpusID,
+		File:     file,
 	}
 	reqBodyReader, headers, err := codec.EncodeRequestBody(&reqBody)
 	if err != nil {

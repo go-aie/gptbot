@@ -23,7 +23,6 @@ type Service interface {
 
 	// UploadFile uploads a file and then feeds the text into the vector store.
 	//kun:op POST /upload
-	//kun:param corpusID in=query name=corpus_id
 	UploadFile(ctx context.Context, corpusID string, file *httpcodec.FormFile) (err error)
 
 	// DeleteDocuments deletes the specified documents from the vector store.

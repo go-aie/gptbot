@@ -32,8 +32,7 @@ def split_file(file):
 
 def upload(file):
     with open(file.name) as f:
-        url = f'{URL}/upload?corpus_id={CORPUS_ID}'
-        resp = requests.post(url, files=dict(file=f))
+        resp = requests.post(URL+'/upload', data=dict(corpus_id=CORPUS_ID), files=dict(file=f))
         handle_error(resp)
         return 'Uploaded successfully!'
 

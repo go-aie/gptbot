@@ -81,11 +81,6 @@ paths:
       summary: "UploadFile uploads a file and then feeds the text into the vector store."
       operationId: "UploadFile"
       parameters:
-        - name: corpus_id
-          in: query
-          required: false
-          type: string
-          description: ""
         - name: body
           in: body
           schema:
@@ -131,7 +126,8 @@ func getDefinitions(schema oas2.Schema) map[string]oas2.Definition {
 	oas2.AddResponseDefinitions(defs, schema, "DeleteDocuments", 200, (&DeleteDocumentsResponse{}).Body())
 
 	oas2.AddDefinition(defs, "UploadFileRequestBody", reflect.ValueOf(&struct {
-		File *httpcodec.FormFile `json:"file"`
+		CorpusID string              `json:"corpus_id"`
+		File     *httpcodec.FormFile `json:"file"`
 	}{}))
 	oas2.AddResponseDefinitions(defs, schema, "UploadFile", 200, (&UploadFileResponse{}).Body())
 

@@ -166,7 +166,7 @@ func MakeEndpointOfDeleteDocuments(s Service) endpoint.Endpoint {
 }
 
 type UploadFileRequest struct {
-	CorpusID string              `json:"-"`
+	CorpusID string              `json:"corpus_id"`
 	File     *httpcodec.FormFile `json:"file"`
 }
 
