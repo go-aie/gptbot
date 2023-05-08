@@ -35,7 +35,7 @@ func NewHTTPClient(codecs httpcodec.Codecs, httpClient *http.Client, baseURL str
 	}, nil
 }
 
-func (c *HTTPClient) Chat(ctx context.Context, question string, inDebug bool, history []*gptbot.Turn) (answer string, debug *gptbot.Debug, err error) {
+func (c *HTTPClient) Chat(ctx context.Context, corpusID string, question string, inDebug bool, history []*gptbot.Turn) (answer string, debug *gptbot.Debug, err error) {
 	codec := c.codecs.EncodeDecoder("Chat")
 
 	path := "/chat"
@@ -46,10 +46,12 @@ func (c *HTTPClient) Chat(ctx context.Context, question string, inDebug bool, hi
 	}
 
 	reqBody := struct {
+		CorpusID string         `json:"corpus_id"`
 		Question string         `json:"question"`
 		InDebug  bool           `json:"in_debug"`
 		History  []*gptbot.Turn `json:"history"`
 	}{
+		CorpusID: corpusID,
 		Question: question,
 		InDebug:  inDebug,
 		History:  history,
@@ -237,7 +239,7 @@ func (c *HTTPClient) DeleteDocuments(ctx context.Context, documentIds []string) 
 	return nil
 }
 
-func (c *HTTPClient) UploadFile(ctx context.Context, file *httpcodec.FormFile) (err error) {
+func (c *HTTPClient) UploadFile(ctx context.Context, corpusID string, file *httpcodec.FormFile) (err error) {
 	codec := c.codecs.EncodeDecoder("UploadFile")
 
 	path := "/upload"
@@ -248,9 +250,11 @@ func (c *HTTPClient) UploadFile(ctx context.Context, file *httpcodec.FormFile) (
 	}
 
 	reqBody := struct {
-		File *httpcodec.FormFile `json:"file"`
+		CorpusID string              `json:"corpus_id"`
+		File     *httpcodec.FormFile `json:"file"`
 	}{
-		File: file,
+		CorpusID: corpusID,
+		File:     file,
 	}
 	reqBodyReader, headers, err := codec.EncodeRequestBody(&reqBody)
 	if err != nil {

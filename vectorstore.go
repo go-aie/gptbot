@@ -73,7 +73,7 @@ func (vs *LocalVectorStore) Insert(ctx context.Context, chunks map[string][]*Chu
 	return nil
 }
 
-func (vs *LocalVectorStore) Query(ctx context.Context, embedding Embedding, topK int) ([]*Similarity, error) {
+func (vs *LocalVectorStore) Query(ctx context.Context, embedding Embedding, corpusID string, topK int) ([]*Similarity, error) {
 	if topK <= 0 {
 		return nil, nil
 	}

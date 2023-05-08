@@ -1,6 +1,8 @@
 package gptbot
 
-type Metadata struct{}
+type Metadata struct {
+	CorpusID string `json:"corpus_id,omitempty"`
+}
 
 type Document struct {
 	ID       string   `json:"id,omitempty"`

@@ -52,7 +52,7 @@ func TestLocalVectorStore_Query(t *testing.T) {
 			t.Errorf("err: %v\n", err)
 		}
 
-		got, err := store.Query(context.Background(), embedding, 3)
+		got, err := store.Query(context.Background(), embedding, "", 3)
 		if err != nil {
 			t.Errorf("err: %v\n", err)
 		}
