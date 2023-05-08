@@ -5,7 +5,7 @@ import requests
 
 
 URL = 'http://127.0.0.1:8080'
-CORPUS_ID = os.getenv('CORPUS_ID', 'meiqia:1')
+CORPUS_ID = os.getenv('CORPUS_ID', '')
 
 
 def handle_error(resp):
