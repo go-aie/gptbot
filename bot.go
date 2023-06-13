@@ -123,6 +123,8 @@ type Bot struct {
 
 // NewBotWithEngine using your specify engine, like Microsoft Azure OpenAI, Baidu Ernie Bot(wenxin yiyan)
 func NewBotWithEngine(cfg *BotConfig, engine Engine) *Bot {
+	cfg.init()
+
 	return &Bot{
 		cfg:    cfg,
 		engine: engine,
