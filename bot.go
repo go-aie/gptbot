@@ -7,19 +7,20 @@ import (
 	"text/template"
 
 	"github.com/rakyll/openai-go"
-	"github.com/rakyll/openai-go/chat"
-	"github.com/rakyll/openai-go/completion"
 )
 
 type ModelType string
 
 const (
 	// GPT-4
-	GPT4 ModelType = "gpt-4"
+	GPT4     ModelType = "gpt-4"
+	GPT40301 ModelType = "gpt-4-0314"
+
 	// GPT-3.5
-	GPT3Dot5Turbo  ModelType = "gpt-3.5-turbo"
-	TextDavinci003 ModelType = "text-davinci-003"
-	TextDavinci002 ModelType = "text-davinci-002"
+	GPT3Dot5Turbo     ModelType = "gpt-3.5-turbo"
+	GPT3Dot5Turbo0301 ModelType = "gpt-3.5-turbo-0301"
+	TextDavinci003    ModelType = "text-davinci-003"
+	TextDavinci002    ModelType = "text-davinci-002"
 	// GPT-3
 	TextAda001     ModelType = "text-ada-001"
 	TextCurie001   ModelType = "text-curie-001"
@@ -116,11 +117,19 @@ func (cfg *BotConfig) init() {
 }
 
 type Bot struct {
-	cfg        *BotConfig
-	chatClient *chat.Client
-	compClient *completion.Client
+	cfg    *BotConfig
+	engine Engine
 }
 
+// NewBotWithEngine using your specify engine, like Microsoft Azure OpenAI, Baidu Ernie Bot(wenxin yiyan)
+func NewBotWithEngine(cfg *BotConfig, engine Engine) *Bot {
+	return &Bot{
+		cfg:    cfg,
+		engine: engine,
+	}
+}
+
+// NewBot using the default engine (openai)
 func NewBot(cfg *BotConfig) *Bot {
 	cfg.init()
 	s := openai.NewSession(cfg.APIKey)
@@ -128,10 +137,10 @@ func NewBot(cfg *BotConfig) *Bot {
 
 	// https://platform.openai.com/docs/models/model-endpoint-compatibility
 	switch cfg.Model {
-	case GPT4, GPT3Dot5Turbo:
-		bot.chatClient = chat.NewClient(s, string(cfg.Model))
+	case GPT4, GPT40301, GPT3Dot5Turbo, GPT3Dot5Turbo0301:
+		bot.engine = NewOpenAIChatEngine(s, cfg.Model)
 	case TextDavinci003, TextDavinci002, TextAda001, TextBabbage001, TextCurie001:
-		bot.compClient = completion.NewClient(s, string(cfg.Model))
+		bot.engine = NewOpenAICompletionEngine(s, cfg.Model)
 	default:
 		panic("unsupported gpt model!")
 	}
@@ -211,45 +220,17 @@ func (b *Bot) singleTurnChat(ctx context.Context, question string, opts *chatOpt
 }
 
 func (b *Bot) chat(ctx context.Context, prompt string, temperature float64) (string, error) {
-	if b.chatClient != nil {
-		return b.doChatCompletion(ctx, prompt, temperature)
-	}
-	return b.doCompletion(ctx, prompt, temperature)
-}
-
-// powered by /v1/chat/completions completion api, supported model like `gpt-3.5-turbo`
-func (b *Bot) doChatCompletion(ctx context.Context, prompt string, temperature float64) (string, error) {
-	resp, err := b.chatClient.CreateCompletion(ctx, &chat.CreateCompletionParams{
-		Messages: []*chat.Message{
-			{
-				Role:    "user",
-				Content: prompt,
-			},
-		},
+	req := &EngineRequest{
+		Messages:    []*EngineMessage{{Role: "user", Content: prompt}},
 		Temperature: temperature,
 		MaxTokens:   b.cfg.MaxTokens,
-	})
+	}
+	resp, err := b.engine.Infer(ctx, req)
 	if err != nil {
 		return "", err
 	}
 
-	answer := resp.Choices[0].Message.Content
-	return answer, nil
-}
-
-// powered by /v1/completions completion api, supported model like `text-davinci-003`
-func (b *Bot) doCompletion(ctx context.Context, prompt string, temperature float64) (string, error) {
-	resp, err := b.compClient.Create(ctx, &completion.CreateParams{
-		Prompt:      []string{prompt},
-		Temperature: temperature,
-		MaxTokens:   b.cfg.MaxTokens,
-	})
-	if err != nil {
-		return "", err
-	}
-
-	answer := resp.Choices[0].Text
-	return answer, nil
+	return resp.Text, nil
 }
 
 func (b *BotConfig) constructPrompt(ctx context.Context, question string, opts *chatOptions) (string, error) {

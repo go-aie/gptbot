@@ -2,6 +2,11 @@ package gptbot
 
 import (
 	"context"
+	"log"
+
+	"github.com/rakyll/openai-go"
+	"github.com/rakyll/openai-go/chat"
+	"github.com/rakyll/openai-go/completion"
 )
 
 type EngineMessage struct {
@@ -23,12 +28,69 @@ type Engine interface {
 	Infer(context.Context, *EngineRequest) (*EngineResponse, error)
 }
 
+// OpenAIChatEngine powered by /v1/chat/completions completion api, supported model like `gpt-4`, `gpt-3.5-turbo` ...
 type OpenAIChatEngine struct {
-	// TODO: Implement this engine.
-	// gpt-4, gpt-4-0314, gpt-4-32k, gpt-4-32k-0314, gpt-3.5-turbo, gpt-3.5-turbo-0301
+	Client *chat.Client
 }
 
+// OpenAICompletionEngine powered by /v1/completions completion api, supported model like `text-davinci-003` ...
 type OpenAICompletionEngine struct {
-	// TODO: Implement this engine.
-	// text-davinci-003, text-davinci-002, text-curie-001, text-babbage-001, text-ada-001
+	Client *completion.Client
+}
+
+func NewOpenAIChatEngine(s *openai.Session, model ModelType) *OpenAIChatEngine {
+	client := chat.NewClient(s, string(model))
+	if client == nil {
+		log.Fatalf("init open ai chat client error")
+	}
+
+	return &OpenAIChatEngine{
+		Client: client,
+	}
+}
+
+func NewOpenAICompletionEngine(s *openai.Session, model ModelType) *OpenAICompletionEngine {
+	compClient := completion.NewClient(s, string(model))
+	if compClient == nil {
+		log.Fatalf("init open ai completion client error")
+	}
+
+	return &OpenAICompletionEngine{
+		Client: compClient,
+	}
+}
+
+func (e *OpenAIChatEngine) Infer(ctx context.Context, req *EngineRequest) (resp *EngineResponse, err error) {
+	apiResp, err := e.Client.CreateCompletion(ctx, &chat.CreateCompletionParams{
+		Messages: []*chat.Message{
+			{
+				Role:    req.Messages[0].Role,
+				Content: req.Messages[0].Content,
+			},
+		},
+		Temperature: req.Temperature,
+		MaxTokens:   req.MaxTokens,
+	})
+	if err != nil {
+		return
+	}
+
+	return &EngineResponse{
+		Text: apiResp.Choices[0].Message.Content,
+	}, nil
+}
+
+func (e *OpenAICompletionEngine) Infer(ctx context.Context, req *EngineRequest) (resp *EngineResponse, err error) {
+	apiResp, err := e.Client.Create(ctx, &completion.CreateParams{
+		Prompt:      []string{req.Messages[0].Content},
+		Temperature: req.Temperature,
+		MaxTokens:   req.MaxTokens,
+	})
+	if err != nil {
+		return
+	}
+
+	return &EngineResponse{
+		Text: apiResp.Choices[0].Text,
+	}, nil
 }
