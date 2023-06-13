@@ -5,36 +5,7 @@ import (
 	"context"
 	"strings"
 	"text/template"
-
-	"github.com/rakyll/openai-go"
 )
-
-type ModelType string
-
-const (
-	// GPT-4
-	GPT4     ModelType = "gpt-4"
-	GPT40301 ModelType = "gpt-4-0314"
-
-	// GPT-3.5
-	GPT3Dot5Turbo     ModelType = "gpt-3.5-turbo"
-	GPT3Dot5Turbo0301 ModelType = "gpt-3.5-turbo-0301"
-	TextDavinci003    ModelType = "text-davinci-003"
-	TextDavinci002    ModelType = "text-davinci-002"
-	// GPT-3
-	TextAda001     ModelType = "text-ada-001"
-	TextCurie001   ModelType = "text-curie-001"
-	TextBabbage001 ModelType = "text-babbage-001"
-)
-
-type Encoder interface {
-	Encode(cxt context.Context, text string) (Embedding, error)
-	EncodeBatch(cxt context.Context, texts []string) ([]Embedding, error)
-}
-
-type Querier interface {
-	Query(ctx context.Context, embedding Embedding, corpusID string, topK int) ([]*Similarity, error)
-}
 
 // Turn represents a round of dialogue.
 type Turn struct {
@@ -43,9 +14,13 @@ type Turn struct {
 }
 
 type BotConfig struct {
-	// APIKey is the OpenAI's APIKey.
+	// APIKey is the LLM Platform's APIKey.
 	// This field is required.
 	APIKey string
+
+	// Engine is the LLM Platform api implementation
+	// Defaults to OpenAI's chat api which using gpt-3.5-turbo model
+	Engine Engine
 
 	// Encoder is an Embedding Encoder, which will encode the user's question into a vector for similarity search.
 	// This field is required.
@@ -114,38 +89,19 @@ func (cfg *BotConfig) init() {
 	if cfg.MultiTurnPromptTmpl == "" {
 		cfg.MultiTurnPromptTmpl = DefaultMultiTurnPromptTmpl
 	}
+	if cfg.Engine == nil {
+		cfg.Engine = NewOpenAIChatEngine(cfg.APIKey, cfg.Model)
+	}
 }
 
 type Bot struct {
-	cfg    *BotConfig
-	engine Engine
+	cfg *BotConfig
 }
 
-// NewBotWithEngine using your specify engine, like Microsoft Azure OpenAI, Baidu Ernie Bot(wenxin yiyan)
-func NewBotWithEngine(cfg *BotConfig, engine Engine) *Bot {
-	cfg.init()
-
-	return &Bot{
-		cfg:    cfg,
-		engine: engine,
-	}
-}
-
-// NewBot using the default engine (openai)
+// NewBot support single and multi-turn chat request
 func NewBot(cfg *BotConfig) *Bot {
 	cfg.init()
-	s := openai.NewSession(cfg.APIKey)
 	bot := &Bot{cfg: cfg}
-
-	// https://platform.openai.com/docs/models/model-endpoint-compatibility
-	switch cfg.Model {
-	case GPT4, GPT40301, GPT3Dot5Turbo, GPT3Dot5Turbo0301:
-		bot.engine = NewOpenAIChatEngine(s, cfg.Model)
-	case TextDavinci003, TextDavinci002, TextAda001, TextBabbage001, TextCurie001:
-		bot.engine = NewOpenAICompletionEngine(s, cfg.Model)
-	default:
-		panic("unsupported gpt model!")
-	}
 
 	return bot
 }
@@ -227,7 +183,7 @@ func (b *Bot) chat(ctx context.Context, prompt string, temperature float64) (str
 		Temperature: temperature,
 		MaxTokens:   b.cfg.MaxTokens,
 	}
-	resp, err := b.engine.Infer(ctx, req)
+	resp, err := b.cfg.Engine.Infer(ctx, req)
 	if err != nil {
 		return "", err
 	}

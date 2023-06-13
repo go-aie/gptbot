@@ -32,6 +32,7 @@ func main() {
 		APIKey:  apiKey,
 		Encoder: encoder,
 		Querier: store,
+		// Engine:  gptbot.NewOpenAICompletionEngine(apiKey, gptbot.TextDavinci003),
 	})
 
 	svc := NewGPTBot(feeder, store, bot)
