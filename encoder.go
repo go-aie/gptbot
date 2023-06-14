@@ -7,15 +7,6 @@ import (
 	"github.com/rakyll/openai-go/embedding"
 )
 
-type Encoder interface {
-	Encode(cxt context.Context, text string) (Embedding, error)
-	EncodeBatch(cxt context.Context, texts []string) ([]Embedding, error)
-}
-
-type Querier interface {
-	Query(ctx context.Context, embedding Embedding, corpusID string, topK int) ([]*Similarity, error)
-}
-
 type OpenAIEncoder struct {
 	client *embedding.Client
 }
