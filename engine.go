@@ -26,25 +26,6 @@ const (
 	TextBabbage001 ModelType = "text-babbage-001"
 )
 
-type EngineMessage struct {
-	Role    string `json:"role,omitempty"`
-	Content string `json:"content,omitempty"`
-}
-
-type EngineRequest struct {
-	Messages    []*EngineMessage `json:"messages,omitempty"`
-	Temperature float64          `json:"temperature,omitempty"`
-	MaxTokens   int              `json:"max_tokens,omitempty"`
-}
-
-type EngineResponse struct {
-	Text string `json:"text,omitempty"`
-}
-
-type Engine interface {
-	Infer(context.Context, *EngineRequest) (*EngineResponse, error)
-}
-
 // https://platform.openai.com/docs/models/model-endpoint-compatibility
 
 // OpenAIChatEngine powered by /v1/chat/completions completion api, supported model like:

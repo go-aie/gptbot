@@ -94,6 +94,25 @@ func (cfg *BotConfig) init() {
 	}
 }
 
+type EngineMessage struct {
+	Role    string `json:"role,omitempty"`
+	Content string `json:"content,omitempty"`
+}
+
+type EngineRequest struct {
+	Messages    []*EngineMessage `json:"messages,omitempty"`
+	Temperature float64          `json:"temperature,omitempty"`
+	MaxTokens   int              `json:"max_tokens,omitempty"`
+}
+
+type EngineResponse struct {
+	Text string `json:"text,omitempty"`
+}
+
+type Engine interface {
+	Infer(context.Context, *EngineRequest) (*EngineResponse, error)
+}
+
 type Bot struct {
 	cfg *BotConfig
 }
