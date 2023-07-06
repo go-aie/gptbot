@@ -3,6 +3,7 @@ package gptbot
 import (
 	"fmt"
 	"strings"
+	"unicode"
 	"unicode/utf8"
 
 	"github.com/go-aie/xslices"
@@ -129,8 +130,16 @@ func (p *Preprocessor) split(text string) ([]string, error) {
 		}
 
 		if lastPuncIdx != -1 && lastPuncIdx > p.cfg.MinChunkCharNum {
-			// Truncate the chunk text at the punctuation mark.
-			chunkText = string([]rune(chunkText)[:lastPuncIdx+1])
+			if chunkRunes[lastPuncIdx] == '.' && lastPuncIdx+1 < len(chunkRunes) {
+				// given the dot cases of `equivalent to 66.2 nautical miles` or `http://example.com/download.html`
+				// roughly split by: dot mark must not followed by a letter or a digit
+				if !unicode.IsLetter(chunkRunes[lastPuncIdx+1]) && !unicode.IsDigit(chunkRunes[lastPuncIdx+1]) {
+					chunkText = string([]rune(chunkText)[:lastPuncIdx+1])
+				}
+			} else {
+				// Truncate the chunk text at the punctuation mark.
+				chunkText = string([]rune(chunkText)[:lastPuncIdx+1])
+			}
 		}
 
 		trimmedChunkText := strings.TrimSpace(strings.ReplaceAll(chunkText, "\n", " "))
