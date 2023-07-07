@@ -26,6 +26,10 @@ func main() {
 	feeder := gptbot.NewFeeder(&gptbot.FeederConfig{
 		Encoder: encoder,
 		Updater: store,
+		Preprocessor: gptbot.NewPreprocessor(&gptbot.PreprocessorConfig{
+			ChunkTokenNum:    300,
+			PunctuationMarks: []rune{'.', '?', '!', '\n'}, // common English sentence pattern
+		}),
 	})
 
 	bot := gptbot.NewBot(&gptbot.BotConfig{

@@ -12,15 +12,22 @@ type ModelType string
 
 const (
 	// GPT-4
-	GPT4     ModelType = "gpt-4"
-	GPT40301 ModelType = "gpt-4-0314"
+	GPT4        ModelType = "gpt-4"
+	GPT40613    ModelType = "gpt-4-0613"
+	GPT432K     ModelType = "gpt-4-32k"
+	GPT432K0613 ModelType = "gpt-4-32k-0613"
+	GPT40314    ModelType = "gpt-4-0314"
+	GPT432K0314 ModelType = "gpt-4-32k-0314"
 
 	// GPT-3.5
-	GPT3Dot5Turbo     ModelType = "gpt-3.5-turbo"
-	GPT3Dot5Turbo0301 ModelType = "gpt-3.5-turbo-0301"
-	TextDavinci003    ModelType = "text-davinci-003"
-	TextDavinci002    ModelType = "text-davinci-002"
-	// GPT-3
+	GPT3Dot5Turbo        ModelType = "gpt-3.5-turbo"
+	GPT3Dot5Turbo16K     ModelType = "gpt-3.5-turbo-16k"
+	GPT3Dot5Turbo0613    ModelType = "gpt-3.5-turbo-0613"
+	GPT3Dot5Turbo16K0613 ModelType = "gpt-3.5-turbo-16k-0613"
+	TextDavinci003       ModelType = "text-davinci-003"
+	TextDavinci002       ModelType = "text-davinci-002"
+
+	// GPT-3 (not recommend)
 	TextAda001     ModelType = "text-ada-001"
 	TextCurie001   ModelType = "text-curie-001"
 	TextBabbage001 ModelType = "text-babbage-001"

@@ -29,6 +29,10 @@ type PreprocessorConfig struct {
 	// MaxChunkNum is the maximum number of chunks to generate from a text.
 	// Defaults to 10000.
 	MaxChunkNum int
+
+	// PunctuationMarks is the sentence separators.
+	// Defaults to []rune{'.', '?', '!', '。', '？', '！', '\n'}
+	PunctuationMarks []rune
 }
 
 func (cfg *PreprocessorConfig) init() *PreprocessorConfig {
@@ -43,6 +47,9 @@ func (cfg *PreprocessorConfig) init() *PreprocessorConfig {
 	}
 	if cfg.MaxChunkNum == 0 {
 		cfg.MaxChunkNum = 10000
+	}
+	if len(cfg.PunctuationMarks) == 0 {
+		cfg.PunctuationMarks = []rune{'.', '?', '!', '。', '？', '！', '\n'}
 	}
 	return cfg
 }
@@ -121,19 +128,15 @@ func (p *Preprocessor) split(text string) ([]string, error) {
 		// Find the last period or punctuation mark in the chunk.
 		// Note that here we count the index in runes.
 		var lastPuncIdx = -1
-		for _, punc := range []rune{
-			'.', '?', '!',
-			'。', '？', '！',
-			'\n',
-		} {
+		for _, punc := range p.cfg.PunctuationMarks {
 			lastPuncIdx = xslices.Max(lastPuncIdx, lastRuneIndex(chunkText, punc))
 		}
 
 		if lastPuncIdx != -1 && lastPuncIdx > p.cfg.MinChunkCharNum {
 			if chunkRunes[lastPuncIdx] == '.' && lastPuncIdx+1 < len(chunkRunes) {
 				// given the dot cases of `equivalent to 66.2 nautical miles` or `http://example.com/download.html`
-				// roughly split by: dot mark must not followed by a letter or a digit
-				if !unicode.IsLetter(chunkRunes[lastPuncIdx+1]) && !unicode.IsDigit(chunkRunes[lastPuncIdx+1]) {
+				// roughly split by: dot mark must followed by space char
+				if unicode.IsSpace(chunkRunes[lastPuncIdx+1]) {
 					chunkText = string([]rune(chunkText)[:lastPuncIdx+1])
 				}
 			} else {

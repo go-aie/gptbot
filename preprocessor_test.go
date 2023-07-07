@@ -9,8 +9,9 @@ import (
 
 func TestPreprocessor_Preprocess(t *testing.T) {
 	p := gptbot.NewPreprocessor(&gptbot.PreprocessorConfig{
-		ChunkTokenNum:   150,
-		MinChunkCharNum: 40,
+		ChunkTokenNum:    150,
+		MinChunkCharNum:  40,
+		PunctuationMarks: []rune{'.', '。', '？', '！', '\n'},
 	})
 
 	tests := []struct {
@@ -40,7 +41,7 @@ func TestPreprocessor_Preprocess(t *testing.T) {
 				"1": {
 					{
 						ID:         "1_0",
-						Text:       "Generative Pre-trained Transformer 3 (GPT-3) is an autoregressive language model released in 2020 that uses deep learning to produce human-like text. Given an initial text as prompt, it will produce text that continues the prompt.  The architecture is a decoder-only transformer network with a 2048-token-long context and then-unprecedented size of 175 billion parameters, requiring 800GB to store. The model was trained using generative pre-training; it is trained to predict what the next token is based on previous tokens. The model demonstrated strong zero-shot and few-shot learning on many tasks.",
+						Text:       "Generative Pre-trained Transformer 3 (GPT-3) is an autoregressive language model released in 2020 that uses deep learning to produce human-like text. Given an initial text as prompt, it will produce text that continues the prompt.  The architecture is a decoder-only transformer network with a 2048-token-long context and then-unprecedented size of 175 billion parameters, requiring 800GB to store. The model was trained using generative pre-training; it is trained to predict what the next token is based on previous tokens. The model demonstrated strong zero-shot and few-shot learning on many tasks.[2]",
 						DocumentID: "1",
 					},
 				},
