@@ -33,38 +33,22 @@ const (
 	TextBabbage001 ModelType = "text-babbage-001"
 )
 
-// https://platform.openai.com/docs/models/model-endpoint-compatibility
-
-// OpenAIChatEngine powered by /v1/chat/completions completion api, supported model like:
-// `gpt-4`, `gpt-4-0314`, `gpt-3.5-turbo`, `gpt-3.5-turbo-0301` ...
+// OpenAIChatEngine is an engine powered by OpenAI's Chat API /v1/chat/completions.
+//
+// See https://platform.openai.com/docs/models/model-endpoint-compatibility for
+// the supported models.
 type OpenAIChatEngine struct {
 	Client *chat.Client
 }
 
-// OpenAICompletionEngine powered by /v1/completions completion api, supported model like:
-// `text-davinci-003`, `text-davinci-002`, `text-ada-001`, `text-curie-001`, `text-babbage-001` ...
-type OpenAICompletionEngine struct {
-	Client *completion.Client
-}
-
 func NewOpenAIChatEngine(apiKey string, model ModelType) *OpenAIChatEngine {
-	client := chat.NewClient(openai.NewSession(apiKey), string(model))
-
 	return &OpenAIChatEngine{
-		Client: client,
+		Client: chat.NewClient(openai.NewSession(apiKey), string(model)),
 	}
 }
 
-func NewOpenAICompletionEngine(apiKey string, model ModelType) *OpenAICompletionEngine {
-	compClient := completion.NewClient(openai.NewSession(apiKey), string(model))
-
-	return &OpenAICompletionEngine{
-		Client: compClient,
-	}
-}
-
-func (e *OpenAIChatEngine) Infer(ctx context.Context, req *EngineRequest) (resp *EngineResponse, err error) {
-	apiResp, err := e.Client.CreateCompletion(ctx, &chat.CreateCompletionParams{
+func (e *OpenAIChatEngine) Infer(ctx context.Context, req *EngineRequest) (*EngineResponse, error) {
+	resp, err := e.Client.CreateCompletion(ctx, &chat.CreateCompletionParams{
 		Messages: []*chat.Message{
 			{
 				Role:    req.Messages[0].Role,
@@ -75,25 +59,39 @@ func (e *OpenAIChatEngine) Infer(ctx context.Context, req *EngineRequest) (resp 
 		MaxTokens:   req.MaxTokens,
 	})
 	if err != nil {
-		return
+		return nil, err
 	}
 
 	return &EngineResponse{
-		Text: apiResp.Choices[0].Message.Content,
+		Text: resp.Choices[0].Message.Content,
 	}, nil
 }
 
-func (e *OpenAICompletionEngine) Infer(ctx context.Context, req *EngineRequest) (resp *EngineResponse, err error) {
-	apiResp, err := e.Client.Create(ctx, &completion.CreateParams{
+// OpenAICompletionEngine is an engine powered by OpenAI's Completion API /v1/completions.
+//
+// See https://platform.openai.com/docs/models/model-endpoint-compatibility for
+// the supported models.
+type OpenAICompletionEngine struct {
+	Client *completion.Client
+}
+
+func NewOpenAICompletionEngine(apiKey string, model ModelType) *OpenAICompletionEngine {
+	return &OpenAICompletionEngine{
+		Client: completion.NewClient(openai.NewSession(apiKey), string(model)),
+	}
+}
+
+func (e *OpenAICompletionEngine) Infer(ctx context.Context, req *EngineRequest) (*EngineResponse, error) {
+	resp, err := e.Client.Create(ctx, &completion.CreateParams{
 		Prompt:      []string{req.Messages[0].Content},
 		Temperature: req.Temperature,
 		MaxTokens:   req.MaxTokens,
 	})
 	if err != nil {
-		return
+		return nil, err
 	}
 
 	return &EngineResponse{
-		Text: apiResp.Choices[0].Text,
+		Text: resp.Choices[0].Text,
 	}, nil
 }
